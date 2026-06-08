@@ -58,9 +58,16 @@ function TeamChip({ team, showOwner = false }: { team: string; showOwner?: boole
 }
 
 function fmtDate(iso: string) {
+  // Fixed locale + timezone so SSR and client agree.
   const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " · " +
-    d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }) + " ET";
 }
 
 function App() {
