@@ -124,7 +124,12 @@ interface ApiMatch {
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}/${path}`, { cache: "no-store" });
+  const res = await fetch(`${BASE}/${path}`, { cache: "no-store", headers:
+        {
+            "Access-Control-Allow-Origin":"*",
+            "Access-Control-Allow-Methods": "HEAD, GET, POST, PUT, PATCH, DELETE",
+            "Access-Control-Allow-Headers": "Origin, Content-Type, X-Auth-Token"
+        } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json() as Promise<T>;
 }
