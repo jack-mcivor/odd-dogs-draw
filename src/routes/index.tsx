@@ -301,6 +301,7 @@ function Fixtures() {
 
 function FixtureRow({ match }: { match: Match }) {
   const state = getState();
+  const apiMeta = useApiMeta();
   const score = state.scores[match.id];
   const e = effectiveTeams(match);
   const [home, setHome] = useState(score?.home?.toString() ?? "");
@@ -308,6 +309,8 @@ function FixtureRow({ match }: { match: Match }) {
   const wildcardApplied = match.stage === "group" && Object.values(state.wildcards).some((arr) =>
     arr.some((u) => u.matchId === match.id)
   );
+  const isLive = apiMeta.liveMatchIds.has(match.id) && !score?.played;
+  const ukTv = apiMeta.ukChannels.map((c) => c.name).join(" / ");
 
   const ownerH = teamOwner(e.home);
   const ownerA = teamOwner(e.away);
@@ -327,12 +330,22 @@ function FixtureRow({ match }: { match: Match }) {
           <Badge variant="outline" className="border-primary/40 text-primary">{stageLabel}</Badge>
           <span>{fmtDate(match.date)}</span>
           <span className="hidden sm:inline">· {match.venue}, {match.city}</span>
+          {ukTv && match.stage === "group" && (
+            <span className="hidden md:inline">· 📺 UK: {ukTv}</span>
+          )}
         </div>
-        {wildcardApplied && (
-          <span className="inline-flex items-center gap-1 rounded bg-primary text-primary-foreground px-1.5 py-0.5 font-black text-[10px]">
-            WC ×2
-          </span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {isLive && (
+            <span className="inline-flex items-center gap-1 rounded bg-red-500 text-white px-1.5 py-0.5 font-black text-[10px] animate-pulse">
+              ● LIVE
+            </span>
+          )}
+          {wildcardApplied && (
+            <span className="inline-flex items-center gap-1 rounded bg-primary text-primary-foreground px-1.5 py-0.5 font-black text-[10px]">
+              WC ×2
+            </span>
+          )}
+        </div>
       </div>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         <div className="text-right">
@@ -358,7 +371,7 @@ function FixtureRow({ match }: { match: Match }) {
         </div>
       </div>
       <div className="flex items-center justify-end gap-2 mt-2">
-        {score?.played && <span className="text-[10px] text-muted-foreground mr-auto">Saved</span>}
+        {score?.played && <span className="text-[10px] text-muted-foreground mr-auto">Saved (live API)</span>}
         <Button size="sm" onClick={save} disabled={!canSave}>Save score</Button>
       </div>
     </Card>
