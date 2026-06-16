@@ -72,7 +72,11 @@ function fmtDate(iso: string) {
 
 function App() {
   useAppState();
+  const apiMeta = useApiMeta();
   const [tab, setTab] = useState("dashboard");
+
+  useEffect(() => { initApi(); }, []);
+
   return (
     <div className="min-h-screen text-foreground">
       <header className="border-b border-border bg-card/60 backdrop-blur sticky top-0 z-30">
@@ -80,11 +84,20 @@ function App() {
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
             <Trophy className="w-5 h-5 text-primary-foreground" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-lg md:text-2xl font-black tracking-tight">
               Odd Dogs: <span className="text-primary">It's Claude's World Cup!</span>
             </h1>
             <p className="text-xs text-muted-foreground">FIFA World Cup 2026 · USA · Canada · Mexico</p>
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold">
+            {apiMeta.offline ? (
+              <span className="rounded bg-muted text-muted-foreground px-2 py-1">⚠ OFFLINE DATA</span>
+            ) : apiMeta.loaded ? (
+              <span className="rounded bg-emerald-500/15 text-emerald-400 px-2 py-1">● LIVE API</span>
+            ) : (
+              <span className="rounded bg-secondary text-muted-foreground px-2 py-1">… loading</span>
+            )}
           </div>
         </div>
       </header>
@@ -105,8 +118,9 @@ function App() {
           <TabsContent value="bracket" className="mt-6"><Bracket /></TabsContent>
         </Tabs>
       </main>
-      <footer className="text-center text-xs text-muted-foreground py-8">
-        Shared tracker — anyone with the link can update. Data lives in your browser.
+      <footer className="text-center text-xs text-muted-foreground py-8 space-y-1">
+        <div>Shared tracker — live scores from wheniskickoff.com, refreshed every 60s.</div>
+        {apiMeta.offline && <div className="text-amber-400">⚠ Using offline fallback data — live API unavailable.</div>}
       </footer>
     </div>
   );
