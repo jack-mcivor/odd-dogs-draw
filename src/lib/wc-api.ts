@@ -34,7 +34,7 @@ export const WILDCARD_ASSIGNMENTS: Record<
   "J'Ashley":    { pot3: ["Côte d'Ivoire", "Curaçao"],          pot4: ["Sweden", "Tunisia"] },
   "Edward":      { pot3: ["Panama", "Ghana"],                    pot4: ["Iraq", "Senegal"] },
   "Xavier":      { pot3: ["Egypt", "New Zealand"],               pot4: ["Ghana", "Panama"] },
-  "Neil":        { pot3: ["Switzerland", "Bosnia & Herzegovina"],pot4: ["Bosnia & Herzegovina", "Qatar"] },
+  "Neil":        { pot3: ["Bosnia & Herzegovina", "Qatar"],       pot4: ["Bosnia & Herzegovina", "Switzerland"] },
   "Jess":        { pot3: ["Algeria", "Jordan"],                  pot4: ["New Zealand", "Iran"] },
   "Gigi":        { pot3: ["Czechia", "South Africa"],            pot4: ["Haiti", "Scotland"] },
   "Andy":        { pot3: ["Scotland", "Haiti"],                  pot4: ["Curaçao", "Ecuador"] },
