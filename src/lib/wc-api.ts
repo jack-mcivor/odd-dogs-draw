@@ -135,43 +135,51 @@ async function fetchJson<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function fetchJsonStatic<T>(path: string): Promise<T> {
+  const res = await fetch(`../static/api/${path}`);
+  return res.json() as Promise<T>;
+}
+
 export async function fetchAndApply(): Promise<void> {
+  let matchesJson, isStaticData = false;
   try {
-    const matchesJson = await fetchJson<{ data: ApiMatch[] }>("matches.json");
-    const updates: Array<{ id: string; home: number; away: number; played: boolean }> = [];
-    const live = new Set<string>();
-    const now = Date.now();
-
-    for (const m of matchesJson.data) {
-      if (m.phase !== "group") continue;
-      const home = canonName(m.home_name);
-      const away = canonName(m.away_name);
-      const id = findGroupMatchId(home, away);
-      if (!id) continue;
-
-      const isFinished = m.status === "FINISHED"
-        && typeof m.score_home === "number"
-        && typeof m.score_away === "number";
-
-      if (isFinished) {
-        updates.push({ id, home: m.score_home!, away: m.score_away!, played: true });
-      } else if (new Date(m.datetime_utc).getTime() <= now) {
-        live.add(id);
-      }
-    }
-
-    bulkSetScores(updates);
-    meta = { ...meta, offline: false, loaded: true, liveMatchIds: live, lastFetch: Date.now() };
-    emit();
+    matchesJson = await fetchJson<{ data: ApiMatch[] }>("matches.json");
   } catch {
-    meta = { ...meta, offline: true, loaded: true, lastFetch: Date.now() };
-    emit();
+    matchesJson = await fetchJsonStatic<{ data: ApiMatch[] }>("matches.json");
+    isStaticData = true;
+    console.log('Using static data')
   }
+    
+  const updates: Array<{ id: string; home: number; away: number; played: boolean }> = [];
+  const live = new Set<string>();
+  const now = Date.now();
+
+  for (const m of matchesJson.data) {
+    if (m.phase !== "group") continue;
+    const home = canonName(m.home_name);
+    const away = canonName(m.away_name);
+    const id = findGroupMatchId(home, away);
+    if (!id) continue;
+
+    const isFinished = m.status === "FINISHED"
+      && typeof m.score_home === "number"
+      && typeof m.score_away === "number";
+
+    if (isFinished) {
+      updates.push({ id, home: m.score_home!, away: m.score_away!, played: true });
+    } else if (new Date(m.datetime_utc).getTime() <= now) {
+      live.add(id);
+    }
+  }
+
+  bulkSetScores(updates);
+  meta = { ...meta, offline: !isStaticData, loaded: true, liveMatchIds: live, lastFetch: Date.now() };
+  emit();
 }
 
 export async function fetchTv(): Promise<void> {
   try {
-    const tv = await fetchJson<{ data: Array<{ code: string; channels: TvChannel[] }> }>("tv.json");
+    const tv = await fetchJsonStatic<{ data: Array<{ code: string; channels: TvChannel[] }> }>("tv.json");
     const uk = tv.data.find((c) => c.code === "uk" || c.code === "gb");
     if (uk?.channels?.length) {
       meta = { ...meta, ukChannels: uk.channels };

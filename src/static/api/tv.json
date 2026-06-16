@@ -1,0 +1,1095 @@
+{
+  "meta": {
+    "version": "1.0",
+    "generated": "2026-06-16T09:02:35Z",
+    "source": "wheniskickoff.com"
+  },
+  "count": 60,
+  "data": [
+    {
+      "code": "us",
+      "name": "United States",
+      "flag": "🇺🇸",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "Fox",
+          "type": "Free broadcast",
+          "note": "70 matches including all USMNT games, semis & final. Free OTA with antenna."
+        },
+        {
+          "name": "FS1",
+          "type": "Cable",
+          "note": "34 matches. Requires cable or streaming TV subscription."
+        },
+        {
+          "name": "Telemundo",
+          "type": "Free (Spanish)",
+          "note": "92 matches in Spanish (12 more on UNIVERSO). Free OTA with antenna."
+        },
+        {
+          "name": "Peacock",
+          "type": "Streaming",
+          "note": "Streams Telemundo's Spanish-language coverage of all 104 matches. Subscription required ($7.99/mo)."
+        },
+        {
+          "name": "Tubi",
+          "type": "Free streaming",
+          "note": "Opening ceremonies + 2 matches in 4K free: Mexico v South Africa (Jun 11) and USMNT v Paraguay (Jun 12)."
+        },
+        {
+          "name": "FOX One",
+          "type": "Streaming",
+          "note": "All 104 matches via FOX One streaming. New Fox direct-to-consumer service."
+        },
+        {
+          "name": "FOX Sports App",
+          "type": "Streaming",
+          "note": "All 104 matches with cable login. 4K available."
+        },
+        {
+          "name": "UNIVERSO",
+          "type": "Cable (Spanish)",
+          "note": "12 matches in Spanish. Requires cable."
+        }
+      ]
+    },
+    {
+      "code": "mx",
+      "name": "Mexico",
+      "flag": "🇲🇽",
+      "lang": "es",
+      "channels": [
+        {
+          "name": "Canal 5 / Las Estrellas",
+          "type": "Free broadcast",
+          "note": "32 matches free-to-air via TelevisaUnivision. Includes all Mexico matches, final, and select knockout games."
+        },
+        {
+          "name": "TV Azteca",
+          "type": "Free broadcast",
+          "note": "32 matches free on Azteca Uno / Azteca 7. Same 32 key matches as Canal 5. All Mexico games + final included."
+        },
+        {
+          "name": "TUDN",
+          "type": "Cable",
+          "note": "Full tournament coverage via cable (TelevisaUnivision). Studio analysis and pre/post-match shows."
+        },
+        {
+          "name": "ViX+",
+          "type": "Streaming",
+          "note": "All 104 matches via ViX+ premium streaming. 72 matches exclusive to ViX+ (not on free TV). Subscription required."
+        }
+      ]
+    },
+    {
+      "code": "ca",
+      "name": "Canada",
+      "flag": "🇨🇦",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "CTV",
+          "type": "Free broadcast",
+          "note": "Free-to-air English coverage from Bell Media. All 104 matches air across CTV/TSN/RDS combined."
+        },
+        {
+          "name": "TSN",
+          "type": "Cable",
+          "note": "English. Full Bell Media coverage of all 104 matches. Stream via TSN+, TSN GO, CTV GO."
+        },
+        {
+          "name": "RDS",
+          "type": "Cable",
+          "note": "French Bell Media coverage. Stream via RDS Go."
+        }
+      ]
+    },
+    {
+      "code": "br",
+      "name": "Brazil",
+      "flag": "🇧🇷",
+      "lang": "pt",
+      "channels": [
+        {
+          "name": "Globo",
+          "type": "Free broadcast",
+          "note": "54 matches across TV Globo (free), SporTV (cable) and Globoplay (streaming). All Brazil matches + Final."
+        },
+        {
+          "name": "CazéTV",
+          "type": "Free (YouTube)",
+          "note": "All 104 matches free on YouTube (50% exclusive). Hosted by Casimiro Miguel."
+        },
+        {
+          "name": "SBT",
+          "type": "Free",
+          "note": "32 matches free, simulcast on NSports streaming. Return after ~30 years away from the World Cup."
+        }
+      ]
+    },
+    {
+      "code": "ar",
+      "name": "Argentina",
+      "flag": "🇦🇷",
+      "lang": "es",
+      "channels": [
+        {
+          "name": "Telefe",
+          "type": "Free",
+          "note": "32 matches free-to-air, including all Argentina games."
+        },
+        {
+          "name": "TV Pública",
+          "type": "Free",
+          "note": "10 matches free, including all Argentina games and the Final."
+        },
+        {
+          "name": "DSPORTS",
+          "type": "Subscription",
+          "note": "All 104 matches via DirecTV Sports. 71-73 matches exclusive to DSPORTS."
+        }
+      ]
+    },
+    {
+      "code": "co",
+      "name": "Colombia",
+      "flag": "🇨🇴",
+      "lang": "es",
+      "channels": [
+        {
+          "name": "Caracol TV",
+          "type": "Free",
+          "note": ""
+        },
+        {
+          "name": "RCN Televisión",
+          "type": "Free",
+          "note": ""
+        },
+        {
+          "name": "Win Sports",
+          "type": "Cable",
+          "note": "Pay TV coverage."
+        }
+      ]
+    },
+    {
+      "code": "cl",
+      "name": "Chile",
+      "flag": "🇨🇱",
+      "lang": "es",
+      "channels": [
+        {
+          "name": "Chilevisión",
+          "type": "Free",
+          "note": "Exclusive Chilean rights — all matches free."
+        }
+      ]
+    },
+    {
+      "code": "uy",
+      "name": "Uruguay",
+      "flag": "🇺🇾",
+      "lang": "es",
+      "channels": [
+        {
+          "name": "Canal 5",
+          "type": "Free",
+          "note": "Free-to-air national broadcaster."
+        },
+        {
+          "name": "Antel TV",
+          "type": "Subscription",
+          "note": "Pay TV via state telecom Antel."
+        }
+      ]
+    },
+    {
+      "code": "pe",
+      "name": "Peru",
+      "flag": "🇵🇪",
+      "lang": "es",
+      "channels": [
+        {
+          "name": "América Televisión",
+          "type": "Free",
+          "note": "Primary Peruvian broadcaster for the tournament. Verified 2026-04-17."
+        },
+        {
+          "name": "DirecTV Latin America",
+          "type": "Subscription",
+          "note": "Regional pay-TV coverage across Latin America."
+        }
+      ]
+    },
+    {
+      "code": "ec",
+      "name": "Ecuador",
+      "flag": "🇪🇨",
+      "lang": "es",
+      "channels": [
+        {
+          "name": "Teleamazonas",
+          "type": "Free",
+          "note": ""
+        },
+        {
+          "name": "TC Televisión",
+          "type": "Free",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "code": "cr",
+      "name": "Costa Rica",
+      "flag": "🇨🇷",
+      "lang": "es",
+      "channels": [
+        {
+          "name": "Teletica",
+          "type": "Free",
+          "note": "Free-to-air coverage."
+        },
+        {
+          "name": "Tigo Sports",
+          "type": "Subscription",
+          "note": "Pay TV coverage."
+        }
+      ]
+    },
+    {
+      "code": "pa",
+      "name": "Panama",
+      "flag": "🇵🇦",
+      "lang": "es",
+      "channels": [
+        {
+          "name": "TVN Panama",
+          "type": "Free",
+          "note": ""
+        },
+        {
+          "name": "Medcom",
+          "type": "Free",
+          "note": "Includes RPC and COS channels."
+        },
+        {
+          "name": "Tigo Sports",
+          "type": "Subscription",
+          "note": "All 104 matches live. Verified 2026-04-17."
+        }
+      ]
+    },
+    {
+      "code": "jm",
+      "name": "Jamaica",
+      "flag": "🇯🇲",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "TVJ",
+          "type": "Free",
+          "note": "Television Jamaica holds exclusive free-to-air rights for Jamaica (announced April 2026). Live matches on TVJ + on-air analysis. Verified 2026-05-05."
+        }
+      ]
+    },
+    {
+      "code": "uk",
+      "name": "United Kingdom",
+      "flag": "🇬🇧",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "BBC",
+          "type": "Free",
+          "note": "Shared 50/50 with ITV (104 matches total). Free on BBC One/iPlayer. Final simulcast Jul 19."
+        },
+        {
+          "name": "ITV",
+          "type": "Free",
+          "note": "Shared 50/50 with BBC. Includes England v Croatia opener (Jun 17). Free on ITV1/ITV4/ITVX. Final simulcast."
+        }
+      ]
+    },
+    {
+      "code": "de",
+      "name": "Germany",
+      "flag": "🇩🇪",
+      "lang": "de",
+      "channels": [
+        {
+          "name": "ARD",
+          "type": "Free public",
+          "note": "30 matches free-to-air"
+        },
+        {
+          "name": "ZDF",
+          "type": "Free public",
+          "note": "30 matches free-to-air"
+        },
+        {
+          "name": "MagentaTV",
+          "type": "Subscription",
+          "note": "All 104 matches (44 exclusive). Telekom."
+        }
+      ]
+    },
+    {
+      "code": "fr",
+      "name": "France",
+      "flag": "🇫🇷",
+      "lang": "fr",
+      "channels": [
+        {
+          "name": "M6",
+          "type": "Free (54 matches)",
+          "note": "54 free matches including all France games. TF1 holds zero matches for the first time since 1978."
+        },
+        {
+          "name": "beIN Sports",
+          "type": "Subscription",
+          "note": "All 104 matches with subscription."
+        }
+      ]
+    },
+    {
+      "code": "es",
+      "name": "Spain",
+      "flag": "🇪🇸",
+      "lang": "es",
+      "channels": [
+        {
+          "name": "RTVE",
+          "type": "Free public",
+          "note": "All Spain matches + key tournament games on La 1 (free)."
+        },
+        {
+          "name": "DAZN",
+          "type": "Subscription",
+          "note": "Exclusive pay-TV rights to all 104 matches in Spain (via Mediapro deal)."
+        },
+        {
+          "name": "Movistar Plus+",
+          "type": "Subscription",
+          "note": "71 matches available via DAZN partnership for Movistar subscribers."
+        }
+      ]
+    },
+    {
+      "code": "it",
+      "name": "Italy",
+      "flag": "🇮🇹",
+      "lang": "it",
+      "channels": [
+        {
+          "name": "RAI",
+          "type": "Free public",
+          "note": "35 matches free on Rai 1, including the opening match, semi-finals and final."
+        },
+        {
+          "name": "DAZN",
+          "type": "Subscription",
+          "note": "All 104 matches via streaming. 69 exclusive to DAZN."
+        }
+      ]
+    },
+    {
+      "code": "nl",
+      "name": "Netherlands",
+      "flag": "🇳🇱",
+      "lang": "nl",
+      "channels": [
+        {
+          "name": "NOS",
+          "type": "Free public",
+          "note": "All matches free on NPO 1 / NPO 3 and NOS.nl live stream. NOS is sole Dutch rights holder — no paid alternative needed."
+        }
+      ]
+    },
+    {
+      "code": "pt",
+      "name": "Portugal",
+      "flag": "🇵🇹",
+      "lang": "pt",
+      "channels": [
+        {
+          "name": "Sport TV",
+          "type": "Subscription",
+          "note": "All 104 matches with subscription. 70 matches exclusive to Sport TV."
+        },
+        {
+          "name": "LiveModeTV / CazéTV",
+          "type": "Free (YouTube)",
+          "note": "34 matches free on YouTube including all Portugal national team games. Same operator as Brazil's CazéTV."
+        }
+      ]
+    },
+    {
+      "code": "be",
+      "name": "Belgium",
+      "flag": "🇧🇪",
+      "lang": "nl",
+      "channels": [
+        {
+          "name": "VRT",
+          "type": "Free (Dutch)",
+          "note": "Primary FIFA licensee for Belgium. Free Dutch coverage on Eén, Canvas and Sporza streaming. Verified 2026-05-05."
+        },
+        {
+          "name": "RTBF",
+          "type": "Free (French)",
+          "note": "All 104 matches free in French on La Une, Tipik, La Trois and Auvio streaming. Verified 2026-05-05."
+        }
+      ]
+    },
+    {
+      "code": "pl",
+      "name": "Poland",
+      "flag": "🇵🇱",
+      "lang": "pl",
+      "channels": [
+        {
+          "name": "TVP",
+          "type": "Free public",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "code": "hr",
+      "name": "Croatia",
+      "flag": "🇭🇷",
+      "lang": "hr",
+      "channels": [
+        {
+          "name": "HRT",
+          "type": "Free public",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "code": "tr",
+      "name": "Turkey",
+      "flag": "🇹🇷",
+      "lang": "tr",
+      "channels": [
+        {
+          "name": "TRT",
+          "type": "Free public",
+          "note": "Exclusive rights for 2026 FIFA World Cup. Full free-to-air coverage."
+        }
+      ]
+    },
+    {
+      "code": "rs",
+      "name": "Serbia",
+      "flag": "🇷🇸",
+      "lang": "sr",
+      "channels": [
+        {
+          "name": "RTS",
+          "type": "Free public",
+          "note": "Free-to-air coverage."
+        },
+        {
+          "name": "Arena Sport",
+          "type": "Subscription",
+          "note": "Pay TV coverage."
+        }
+      ]
+    },
+    {
+      "code": "ch",
+      "name": "Switzerland",
+      "flag": "🇨🇭",
+      "lang": "de",
+      "channels": [
+        {
+          "name": "SRF",
+          "type": "Free public (German)",
+          "note": "German-language coverage on SRF zwei and SRF Play. Part of SRG SSR. All matches free."
+        },
+        {
+          "name": "RTS",
+          "type": "Free public (French)",
+          "note": "French-language coverage on RTS 2 and RTS Play. Part of SRG SSR."
+        },
+        {
+          "name": "RSI",
+          "type": "Free public (Italian)",
+          "note": "Italian-language coverage on RSI LA 2. Part of SRG SSR. All three language regions get full free coverage."
+        }
+      ]
+    },
+    {
+      "code": "at",
+      "name": "Austria",
+      "flag": "🇦🇹",
+      "lang": "de",
+      "channels": [
+        {
+          "name": "ORF",
+          "type": "Free public",
+          "note": "52 matches free on ORF 1 and ORF ON streaming. Includes opening match, final, and Austria's 1st + 3rd group matches (if qualified)."
+        },
+        {
+          "name": "ServusTV",
+          "type": "Free",
+          "note": "52 matches free on ServusTV and servustv.com. Sublicensed from ORF. Austria's 2nd group match (if qualified). All 104 matches free across ORF + ServusTV."
+        }
+      ]
+    },
+    {
+      "code": "no",
+      "name": "Norway",
+      "flag": "🇳🇴",
+      "lang": "no",
+      "channels": [
+        {
+          "name": "NRK",
+          "type": "Free public",
+          "note": "~52 matches free on NRK1 and NRK TV (streaming). Includes Norway vs Senegal, Norway vs France, and the World Cup Final."
+        },
+        {
+          "name": "TV 2",
+          "type": "Free + subscription",
+          "note": "~52 matches. Norway's opener vs Iraq on TV 2. All matches free on TV 2 or TV 2 Play (some require Play subscription)."
+        }
+      ]
+    },
+    {
+      "code": "se",
+      "name": "Sweden",
+      "flag": "🇸🇪",
+      "lang": "sv",
+      "channels": [
+        {
+          "name": "SVT",
+          "type": "Free public",
+          "note": "Free on SVT1/SVT2 and SVT Play. Shares rights 50/50 with TV4. Key Sweden matches on SVT including Sweden vs Tunisia."
+        },
+        {
+          "name": "TV4",
+          "type": "Free",
+          "note": "Free on TV4 and TV4 Play. Owns a larger share of total matches. All 104 matches available across SVT + TV4 combined."
+        }
+      ]
+    },
+    {
+      "code": "dk",
+      "name": "Denmark",
+      "flag": "🇩🇰",
+      "lang": "da",
+      "channels": [
+        {
+          "name": "DR",
+          "type": "Free public",
+          "note": "~52 matches free on DR1 and DRTV. Shares rights equally with TV 2. All Denmark matches split between DR and TV 2."
+        },
+        {
+          "name": "TV 2",
+          "type": "Free + subscription",
+          "note": "~52 matches on TV 2 and TV 2 Play. All 104 matches available free across DR + TV 2 combined."
+        }
+      ]
+    },
+    {
+      "code": "fi",
+      "name": "Finland",
+      "flag": "🇫🇮",
+      "lang": "fi",
+      "channels": [
+        {
+          "name": "Yle",
+          "type": "Free public",
+          "note": "40 matches free on Yle TV2 and Yle Areena. Shares rights equally with MTV3. Finland national team matches alternate between Yle and MTV3."
+        },
+        {
+          "name": "MTV3",
+          "type": "Free",
+          "note": "40 matches free on MTV3 and MTV Katsomo. All 80 main matches available free across Yle + MTV3 combined."
+        }
+      ]
+    },
+    {
+      "code": "is",
+      "name": "Iceland",
+      "flag": "🇮🇸",
+      "lang": "is",
+      "channels": [
+        {
+          "name": "RÚV",
+          "type": "Free public",
+          "note": "All matches free on RÚV (Sjónvarpið) and RÚV 2. Also streaming free on ruv.is and the RÚV app. Rights secured via EBU deal covering 2026 + 2030 World Cups. Radio coverage on Rás 1 and Rás 2."
+        }
+      ]
+    },
+    {
+      "code": "ie",
+      "name": "Ireland",
+      "flag": "🇮🇪",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "RTÉ",
+          "type": "Free public",
+          "note": "Free on RTÉ2 and RTÉ Player. Long-term FIFA rights holder in Ireland. All key matches including opening match, knockouts, and final."
+        }
+      ]
+    },
+    {
+      "code": "gr",
+      "name": "Greece",
+      "flag": "🇬🇷",
+      "lang": "el",
+      "channels": [
+        {
+          "name": "ERT",
+          "type": "Free public",
+          "note": ""
+        },
+        {
+          "name": "ANT1",
+          "type": "Free",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "code": "ro",
+      "name": "Romania",
+      "flag": "🇷🇴",
+      "lang": "ro",
+      "channels": [
+        {
+          "name": "Antena",
+          "type": "Free",
+          "note": "Romanian rights holder for the tournament."
+        }
+      ]
+    },
+    {
+      "code": "ng",
+      "name": "Nigeria",
+      "flag": "🇳🇬",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "SuperSport",
+          "type": "Subscription (DStv)",
+          "note": ""
+        },
+        {
+          "name": "NTA",
+          "type": "Free national",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "code": "eg",
+      "name": "Egypt",
+      "flag": "🇪🇬",
+      "lang": "ar",
+      "channels": [
+        {
+          "name": "beIN Sports",
+          "type": "Subscription",
+          "note": "MENA rights"
+        }
+      ]
+    },
+    {
+      "code": "ma",
+      "name": "Morocco",
+      "flag": "🇲🇦",
+      "lang": "ar",
+      "channels": [
+        {
+          "name": "SNRT",
+          "type": "Free national",
+          "note": ""
+        },
+        {
+          "name": "beIN Sports",
+          "type": "Subscription",
+          "note": "MENA rights"
+        }
+      ]
+    },
+    {
+      "code": "cm",
+      "name": "Cameroon",
+      "flag": "🇨🇲",
+      "lang": "fr",
+      "channels": [
+        {
+          "name": "CRTV",
+          "type": "Free national",
+          "note": ""
+        },
+        {
+          "name": "Canal+",
+          "type": "Subscription",
+          "note": "Francophone Africa"
+        }
+      ]
+    },
+    {
+      "code": "sn",
+      "name": "Senegal",
+      "flag": "🇸🇳",
+      "lang": "fr",
+      "channels": [
+        {
+          "name": "RTS Sénégal",
+          "type": "Free national",
+          "note": ""
+        },
+        {
+          "name": "Canal+",
+          "type": "Subscription",
+          "note": "Francophone Africa"
+        }
+      ]
+    },
+    {
+      "code": "dz",
+      "name": "Algeria",
+      "flag": "🇩🇿",
+      "lang": "ar",
+      "channels": [
+        {
+          "name": "ENTV",
+          "type": "Free national",
+          "note": ""
+        },
+        {
+          "name": "beIN Sports",
+          "type": "Subscription",
+          "note": "MENA rights"
+        }
+      ]
+    },
+    {
+      "code": "tn",
+      "name": "Tunisia",
+      "flag": "🇹🇳",
+      "lang": "ar",
+      "channels": [
+        {
+          "name": "Wataniya",
+          "type": "Free national",
+          "note": ""
+        },
+        {
+          "name": "beIN Sports",
+          "type": "Subscription",
+          "note": "MENA rights"
+        }
+      ]
+    },
+    {
+      "code": "gh",
+      "name": "Ghana",
+      "flag": "🇬🇭",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "GTV",
+          "type": "Free national",
+          "note": ""
+        },
+        {
+          "name": "SuperSport",
+          "type": "Subscription (DStv)",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "code": "ci",
+      "name": "Ivory Coast",
+      "flag": "🇨🇮",
+      "lang": "fr",
+      "channels": [
+        {
+          "name": "RTI",
+          "type": "Free national",
+          "note": ""
+        },
+        {
+          "name": "Canal+",
+          "type": "Subscription",
+          "note": "Francophone Africa"
+        }
+      ]
+    },
+    {
+      "code": "za",
+      "name": "South Africa",
+      "flag": "🇿🇦",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "SuperSport",
+          "type": "Subscription (DStv)",
+          "note": ""
+        },
+        {
+          "name": "SABC",
+          "type": "Free",
+          "note": "Selected matches"
+        }
+      ]
+    },
+    {
+      "code": "jp",
+      "name": "Japan",
+      "flag": "🇯🇵",
+      "lang": "ja",
+      "channels": [
+        {
+          "name": "NHK",
+          "type": "Free public",
+          "note": "33 matches free-to-air."
+        },
+        {
+          "name": "Nippon TV",
+          "type": "Free",
+          "note": "15 matches free-to-air."
+        },
+        {
+          "name": "Fuji TV",
+          "type": "Free",
+          "note": "10 matches free-to-air."
+        },
+        {
+          "name": "DAZN",
+          "type": "Streaming",
+          "note": "All 104 matches via streaming. Subscription required."
+        }
+      ]
+    },
+    {
+      "code": "kr",
+      "name": "South Korea",
+      "flag": "🇰🇷",
+      "lang": "ko",
+      "channels": [
+        {
+          "name": "JTBC",
+          "type": "Subscription",
+          "note": "Exclusive Korean rights ($125M paid). Resale talks with KBS/MBC/SBS Korea Pool deadlocked — all matches may require paid access."
+        },
+        {
+          "name": "Naver Sports / CHZZK",
+          "type": "Streaming",
+          "note": "Digital streaming via JTBC partnership."
+        }
+      ]
+    },
+    {
+      "code": "sa",
+      "name": "Saudi Arabia",
+      "flag": "🇸🇦",
+      "lang": "ar",
+      "channels": [
+        {
+          "name": "SSC",
+          "type": "Free national",
+          "note": "Saudi Sports Company"
+        }
+      ]
+    },
+    {
+      "code": "qa",
+      "name": "Qatar",
+      "flag": "🇶🇦",
+      "lang": "ar",
+      "channels": [
+        {
+          "name": "beIN Sports",
+          "type": "Free + subscription",
+          "note": "beIN headquarters"
+        }
+      ]
+    },
+    {
+      "code": "ir",
+      "name": "Iran",
+      "flag": "🇮🇷",
+      "lang": "fa",
+      "channels": [
+        {
+          "name": "beIN Sports",
+          "type": "Subscription",
+          "note": "Official FIFA licensee for the MENA region (satellite). Verified 2026-04-17."
+        },
+        {
+          "name": "IRIB",
+          "type": "Free national",
+          "note": "Iranian state broadcaster — traditional free-to-air coverage of World Cup matches. Check IRIB Varzesh (TV3) schedule closer to kick-off."
+        }
+      ]
+    },
+    {
+      "code": "iq",
+      "name": "Iraq",
+      "flag": "🇮🇶",
+      "lang": "ar",
+      "channels": [
+        {
+          "name": "Al Iraqiya",
+          "type": "Free national",
+          "note": ""
+        },
+        {
+          "name": "beIN Sports",
+          "type": "Subscription",
+          "note": "MENA rights"
+        }
+      ]
+    },
+    {
+      "code": "cn",
+      "name": "China",
+      "flag": "🇨🇳",
+      "lang": "zh",
+      "channels": [
+        {
+          "name": "CCTV-5",
+          "type": "Free national",
+          "note": ""
+        },
+        {
+          "name": "Migu",
+          "type": "Streaming",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "code": "in",
+      "name": "India",
+      "flag": "🇮🇳",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "TBD",
+          "type": "Not yet awarded",
+          "note": "Rights still unsold as of April 2026. FIFA cut asking price from $100M to $35M. JioStar reportedly negotiating around $25M. FIFA+ digital-first distribution is a possible fallback if no broadcaster signs."
+        }
+      ]
+    },
+    {
+      "code": "id",
+      "name": "Indonesia",
+      "flag": "🇮🇩",
+      "lang": "id",
+      "channels": [
+        {
+          "name": "TVRI",
+          "type": "Free national",
+          "note": "Exclusive Indonesian rights. All 104 matches free-to-air on TVRI Sport and TVRI Nasional. Major change from 2022 (Emtek Group / Vidio)."
+        }
+      ]
+    },
+    {
+      "code": "th",
+      "name": "Thailand",
+      "flag": "🇹🇭",
+      "lang": "th",
+      "channels": [
+        {
+          "name": "TrueVisions",
+          "type": "Subscription",
+          "note": ""
+        },
+        {
+          "name": "Thai PBS",
+          "type": "Free",
+          "note": "Selected matches"
+        }
+      ]
+    },
+    {
+      "code": "ph",
+      "name": "Philippines",
+      "flag": "🇵🇭",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "PTV",
+          "type": "Free national",
+          "note": ""
+        },
+        {
+          "name": "Cignal",
+          "type": "Subscription",
+          "note": ""
+        }
+      ]
+    },
+    {
+      "code": "bh",
+      "name": "Bahrain",
+      "flag": "🇧🇭",
+      "lang": "ar",
+      "channels": [
+        {
+          "name": "beIN Sports",
+          "type": "Subscription",
+          "note": "MENA rights"
+        }
+      ]
+    },
+    {
+      "code": "uz",
+      "name": "Uzbekistan",
+      "flag": "🇺🇿",
+      "lang": "uz",
+      "channels": [
+        {
+          "name": "Zo'r TV",
+          "type": "Free national",
+          "note": "Uzbek national broadcaster — free-to-air coverage."
+        }
+      ]
+    },
+    {
+      "code": "au",
+      "name": "Australia",
+      "flag": "🇦🇺",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "SBS",
+          "type": "Free",
+          "note": "Exclusive Australian rights. All 104 matches free across SBS, SBS VICELAND, and SBS On Demand."
+        }
+      ]
+    },
+    {
+      "code": "nz",
+      "name": "New Zealand",
+      "flag": "🇳🇿",
+      "lang": "en",
+      "channels": [
+        {
+          "name": "TVNZ",
+          "type": "Free",
+          "note": "All Whites matches and select games free-to-air on TVNZ. (Sky Sport NZ lost rights — held them in 2022.)"
+        },
+        {
+          "name": "TVNZ+",
+          "type": "Subscription",
+          "note": "Full tournament access via event pass on TVNZ+ streaming. TVNZ's first paid offering."
+        }
+      ]
+    }
+  ]
+}
