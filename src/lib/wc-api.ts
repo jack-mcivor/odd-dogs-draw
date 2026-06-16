@@ -3,7 +3,7 @@
 // (offline status, live match IDs, UK TV channels) to the UI.
 
 import { useSyncExternalStore } from "react";
-import { GROUP_MATCHES, PLAYERS } from "./wc-data";
+import { GROUP_MATCHES, PLAYERS, STATIC_MATCH_API_DATA, type MatchData } from "./wc-data";
 import { bulkSetScores, setAllWildcards, type WildcardUse } from "./wc-store";
 
 const BASE = "https://wheniskickoff.com/data/v1";
@@ -103,26 +103,6 @@ export function useApiMeta(): ApiMeta {
 
 // --- Fetchers -----------------------------------------------------------------
 
-interface ApiMatch {
-  num: number;
-  date: string;
-  time_utc: string;
-  datetime_utc: string;
-  home: string;
-  away: string;
-  home_name: string;
-  away_name: string;
-  group?: string;
-  phase: string;
-  venue: string;
-  venue_name?: string;
-  venue_city?: string;
-  slug: string;
-  score_home?: number;
-  score_away?: number;
-  status?: string;
-}
-
 async function fetchJson<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}/${path}`, { cache: "no-store", headers:
         {
@@ -143,9 +123,9 @@ async function fetchJsonStatic<T>(path: string): Promise<T> {
 export async function fetchAndApply(): Promise<void> {
   let matchesJson, isStaticData = false;
   try {
-    matchesJson = await fetchJson<{ data: ApiMatch[] }>("matches.json");
+    matchesJson = await fetchJson<{ data: MatchData[] }>("matches.json");
   } catch {
-    matchesJson = await fetchJsonStatic<{ data: ApiMatch[] }>("matches.json");
+    matchesJson = STATIC_MATCH_API_DATA;
     isStaticData = true;
     console.log('Using static data')
   }
@@ -156,8 +136,8 @@ export async function fetchAndApply(): Promise<void> {
 
   for (const m of matchesJson.data) {
     if (m.phase !== "group") continue;
-    const home = canonName(m.home_name);
-    const away = canonName(m.away_name);
+    const home = canonName(m.home_name!);
+    const away = canonName(m.away_name!);
     const id = findGroupMatchId(home, away);
     if (!id) continue;
 
