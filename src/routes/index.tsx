@@ -524,8 +524,8 @@ function PlayersTab({ focusPlayer, onConsumeFocus }: { focusPlayer: string | nul
                       <TeamChip team={team} />
                       <div className="flex items-center gap-2 text-[11px]">
                         {(pot === 3 || pot === 4) && (
-                          <span className={`px-1.5 py-0.5 rounded ${wcUsed ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground font-bold"}`}>
-                            WC {wcUsed ? "used" : "available"}
+                          <span className={`px-1.5 py-0.5 rounded ${wcUsed ? "bg-primary text-primary-foreground font-bold" : "bg-muted text-muted-foreground"}`}>
+                            WC {wcUsed ? "used" : "pending"}
                           </span>
                         )}
                         {elim && <span className="px-1.5 py-0.5 rounded bg-destructive/20 text-destructive">Eliminated</span>}
