@@ -473,6 +473,7 @@ function FixtureRow({ match }: { match: Match }) {
 
 function PlayersTab({ focusPlayer, onConsumeFocus }: { focusPlayer: string | null; onConsumeFocus: () => void }) {
   const totals = computeAllTotals();
+  const state = getState();
   useEffect(() => {
     if (!focusPlayer) return;
     const el = document.getElementById(`player-card-${focusPlayer}`);
@@ -486,7 +487,7 @@ function PlayersTab({ focusPlayer, onConsumeFocus }: { focusPlayer: string | nul
     <div className="grid md:grid-cols-2 gap-4">
       {totals.map((p, i) => {
         const player = PLAYERS.find((x) => x.name === p.player)!;
-        const used = getState().wildcards[p.player] ?? [];
+        const used = state.wildcards[p.player] ?? [];
         const isFocused = focusPlayer === p.player;
         return (
           <Card
@@ -512,7 +513,11 @@ function PlayersTab({ focusPlayer, onConsumeFocus }: { focusPlayer: string | nul
               {player.teams.map(({ team, pot }) => {
                 const t = p.perTeam[team];
                 const elim = isTeamEliminated(team);
-                const wcUsed = used.find((u) => u.pot === pot);
+                const wcUse = used.find((u) => u.pot === pot);
+                const wcMatch = wcUse ? GROUP_MATCHES.find((m) => m.id === wcUse.matchId) : undefined;
+                const wcUsed = !!wcMatch
+                  && (wcMatch.home === team || wcMatch.away === team)
+                  && !!state.scores[wcMatch.id]?.played;
                 return (
                   <div key={team} className="rounded-md bg-secondary/40 px-3 py-2">
                     <div className="flex items-center justify-between flex-wrap gap-1">
