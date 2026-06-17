@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { fetchAndApply, initApi, useApiMeta, WILDCARD_ASSIGNMENTS } from "@/lib/wc-api";
 import {
@@ -43,13 +43,26 @@ function TeamChip({ team, showOwner = false }: { team: string; showOwner?: boole
   const t = TEAMS[team];
   const owner = teamOwner(team);
   if (!team) return <span className="text-muted-foreground italic">TBD</span>;
-  return (
-    <span className="inline-flex items-center gap-1.5">
+  const content = (
+    <>
       <span className="text-lg leading-none">{t?.flag ?? "🏳️"}</span>
       <span className="font-semibold">{team}</span>
       {t && <PotBadge pot={t.pot} />}
       {showOwner && owner && <span className="text-xs text-muted-foreground">· {owner}</span>}
-    </span>
+    </>
+  );
+  if (!t) {
+    return <span className="inline-flex items-center gap-1.5">{content}</span>;
+  }
+  return (
+    <Link
+      to="/team/$team"
+      params={{ team }}
+      className="inline-flex items-center gap-1.5 hover:text-primary transition"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {content}
+    </Link>
   );
 }
 
