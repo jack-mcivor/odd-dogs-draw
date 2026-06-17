@@ -443,12 +443,16 @@ function FixtureRow({ match }: { match: Match }) {
             type="number" min={0} value={home} onChange={(ev) => setHome(ev.target.value)}
             className="w-12 h-9 text-center font-bold p-1"
             disabled={!e.home}
+            onBlur={save}
+            onKeyDown={(e) => { if (e.key === "Enter") save(); }}
           />
           <span className="text-muted-foreground">–</span>
           <Input
             type="number" min={0} value={away} onChange={(ev) => setAway(ev.target.value)}
             className="w-12 h-9 text-center font-bold p-1"
             disabled={!e.away}
+            onBlur={save}
+            onKeyDown={(e) => { if (e.key === "Enter") save(); }}
           />
         </div>
         <div className="text-left">
@@ -456,10 +460,11 @@ function FixtureRow({ match }: { match: Match }) {
           {ownerA && <div className="text-[10px] text-muted-foreground mt-0.5">{ownerA}</div>}
         </div>
       </div>
-      <div className="flex items-center justify-end gap-2 mt-2">
-        {score?.played && <span className="text-[10px] text-muted-foreground mr-auto">Saved (live API)</span>}
-        <Button size="sm" onClick={save} disabled={!canSave}>Save score</Button>
-      </div>
+      {score?.played && (
+        <div className="flex items-center justify-end gap-2 mt-2">
+          <span className="text-[10px] text-muted-foreground mr-auto">Saved (live API)</span>
+        </div>
+      )}
     </Card>
   );
 }
@@ -723,6 +728,11 @@ function KnockoutSlot({ match }: { match: Match }) {
   const score = getState().scores[match.id];
   const [home, setHome] = useState(score?.home?.toString() ?? "");
   const [away, setAway] = useState(score?.away?.toString() ?? "");
+  const canSave = home !== "" && away !== "" && e.home && e.away;
+  function save() {
+    if (!canSave) return;
+    setScore(match.id, Number(home) || 0, Number(away) || 0, true);
+  }
 
   return (
     <div className="rounded-md bg-secondary/40 p-2 space-y-1.5">
@@ -731,10 +741,9 @@ function KnockoutSlot({ match }: { match: Match }) {
       <SlotRow team={e.away} onChange={(t) => setKnockoutSlot(match.id, "away", t)} allTeams={allTeams} />
       {e.home && e.away && (
         <div className="flex items-center gap-1 pt-1">
-          <Input type="number" min={0} value={home} onChange={(ev) => setHome(ev.target.value)} className="h-7 w-10 text-center p-1 text-xs" />
+          <Input type="number" min={0} value={home} onChange={(ev) => setHome(ev.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") save(); }} className="h-7 w-10 text-center p-1 text-xs" />
           <span className="text-xs">–</span>
-          <Input type="number" min={0} value={away} onChange={(ev) => setAway(ev.target.value)} className="h-7 w-10 text-center p-1 text-xs" />
-          <Button size="sm" className="h-7 text-xs ml-auto" onClick={() => setScore(match.id, Number(home) || 0, Number(away) || 0, true)}>Save</Button>
+          <Input type="number" min={0} value={away} onChange={(ev) => setAway(ev.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") save(); }} className="h-7 w-10 text-center p-1 text-xs" />
         </div>
       )}
     </div>
