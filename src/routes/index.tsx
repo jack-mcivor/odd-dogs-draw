@@ -71,6 +71,7 @@ function App() {
   const apiMeta = useApiMeta();
   const [tab, setTab] = useState("dashboard");
   const [refreshing, setRefreshing] = useState(false);
+  const [focusPlayer, setFocusPlayer] = useState<string | null>(null);
 
   useEffect(() => { initApi(); }, []);
 
@@ -78,6 +79,11 @@ function App() {
     if (refreshing) return;
     setRefreshing(true);
     try { await fetchAndApply(); } finally { setRefreshing(false); }
+  };
+
+  const goToPlayer = (name: string) => {
+    setFocusPlayer(name);
+    setTab("players");
   };
 
   return (
@@ -134,9 +140,9 @@ function App() {
             <TabsTrigger value="wildcards">Wildcards</TabsTrigger>
             <TabsTrigger value="bracket">Bracket</TabsTrigger>
           </TabsList>
-          <TabsContent value="dashboard" className="mt-6"><Dashboard /></TabsContent>
+          <TabsContent value="dashboard" className="mt-6"><Dashboard onSelectPlayer={goToPlayer} /></TabsContent>
           <TabsContent value="fixtures" className="mt-6"><Fixtures /></TabsContent>
-          <TabsContent value="players" className="mt-6"><PlayersTab /></TabsContent>
+          <TabsContent value="players" className="mt-6"><PlayersTab focusPlayer={focusPlayer} onConsumeFocus={() => setFocusPlayer(null)} /></TabsContent>
           <TabsContent value="wildcards" className="mt-6"><WildcardsTab /></TabsContent>
           <TabsContent value="bracket" className="mt-6"><Bracket /></TabsContent>
         </Tabs>
@@ -151,7 +157,7 @@ function App() {
 
 /* ---------------- DASHBOARD ---------------- */
 
-function Dashboard() {
+function Dashboard({ onSelectPlayer }: { onSelectPlayer: (name: string) => void }) {
   const totals = computeAllTotals();
   const upcoming = nextUpcoming(3);
   const recent = recentResults(5);
@@ -185,7 +191,12 @@ function Dashboard() {
         </div>
         <div className="space-y-1.5">
           {totals.map((p, i) => (
-            <div key={p.player} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${i === 0 ? "bg-primary/15 border border-primary/40" : "bg-secondary/40"}`}>
+            <button
+              key={p.player}
+              type="button"
+              onClick={() => onSelectPlayer(p.player)}
+              className={`w-full text-left flex items-center gap-3 rounded-lg px-3 py-2.5 transition hover:ring-2 hover:ring-primary/50 ${i === 0 ? "bg-primary/15 border border-primary/40" : "bg-secondary/40"}`}
+            >
               <div className={`w-7 h-7 rounded-full grid place-items-center text-sm font-black ${i === 0 ? "bg-primary text-primary-foreground" : "bg-background/60 text-muted-foreground"}`}>
                 {i + 1}
               </div>
@@ -196,7 +207,7 @@ function Dashboard() {
                 </div>
               </div>
               <div className="text-2xl font-black text-primary tabular-nums">{p.total}</div>
-            </div>
+            </button>
           ))}
         </div>
       </Card>
@@ -403,15 +414,30 @@ function FixtureRow({ match }: { match: Match }) {
 
 /* ---------------- PLAYERS ---------------- */
 
-function PlayersTab() {
+function PlayersTab({ focusPlayer, onConsumeFocus }: { focusPlayer: string | null; onConsumeFocus: () => void }) {
   const totals = computeAllTotals();
+  useEffect(() => {
+    if (!focusPlayer) return;
+    const el = document.getElementById(`player-card-${focusPlayer}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    const t = setTimeout(onConsumeFocus, 2000);
+    return () => clearTimeout(t);
+  }, [focusPlayer, onConsumeFocus]);
   return (
     <div className="grid md:grid-cols-2 gap-4">
       {totals.map((p, i) => {
         const player = PLAYERS.find((x) => x.name === p.player)!;
         const used = getState().wildcards[p.player] ?? [];
+        const isFocused = focusPlayer === p.player;
         return (
-          <Card key={p.player} className="p-4 bg-card border-border">
+          <Card
+            key={p.player}
+            id={`player-card-${p.player}`}
+            className={`p-4 bg-card border-border transition ${isFocused ? "ring-2 ring-primary" : ""}`}
+          >
+
             <div className="flex items-center justify-between mb-3">
               <div>
                 <div className="text-[11px] text-muted-foreground">Rank #{i + 1}</div>
