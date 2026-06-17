@@ -157,7 +157,7 @@ function App() {
 
 /* ---------------- DASHBOARD ---------------- */
 
-function Dashboard() {
+function Dashboard({ onSelectPlayer }: { onSelectPlayer: (name: string) => void }) {
   const totals = computeAllTotals();
   const upcoming = nextUpcoming(3);
   const recent = recentResults(5);
@@ -191,7 +191,12 @@ function Dashboard() {
         </div>
         <div className="space-y-1.5">
           {totals.map((p, i) => (
-            <div key={p.player} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${i === 0 ? "bg-primary/15 border border-primary/40" : "bg-secondary/40"}`}>
+            <button
+              key={p.player}
+              type="button"
+              onClick={() => onSelectPlayer(p.player)}
+              className={`w-full text-left flex items-center gap-3 rounded-lg px-3 py-2.5 transition hover:ring-2 hover:ring-primary/50 ${i === 0 ? "bg-primary/15 border border-primary/40" : "bg-secondary/40"}`}
+            >
               <div className={`w-7 h-7 rounded-full grid place-items-center text-sm font-black ${i === 0 ? "bg-primary text-primary-foreground" : "bg-background/60 text-muted-foreground"}`}>
                 {i + 1}
               </div>
@@ -202,7 +207,7 @@ function Dashboard() {
                 </div>
               </div>
               <div className="text-2xl font-black text-primary tabular-nums">{p.total}</div>
-            </div>
+            </button>
           ))}
         </div>
       </Card>
