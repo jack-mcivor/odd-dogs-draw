@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { initApi, useApiMeta, WILDCARD_ASSIGNMENTS } from "@/lib/wc-api";
+import { fetchAndApply, initApi, useApiMeta, WILDCARD_ASSIGNMENTS } from "@/lib/wc-api";
 import {
   ALL_MATCHES, GROUP_MATCHES, GROUPS, GROUP_LETTERS, KNOCKOUT_MATCHES,
   PLAYERS, POT_LABEL_CLASS, TEAMS, teamGroup, teamOwner, type Match, type Pot,
@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Trophy, Download, Flame, Calendar } from "lucide-react";
+import { Trophy, Download, Flame, Calendar, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -70,8 +70,15 @@ function App() {
   useAppState();
   const apiMeta = useApiMeta();
   const [tab, setTab] = useState("dashboard");
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => { initApi(); }, []);
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try { await fetchAndApply(); } finally { setRefreshing(false); }
+  };
 
   return (
     <div className="min-h-screen text-foreground">
@@ -86,17 +93,30 @@ function App() {
             </h1>
             <p className="text-xs text-muted-foreground">FIFA World Cup 2026 · USA · Canada · Mexico</p>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold">
-            {apiMeta.offline ? (
-              <span className="rounded bg-muted text-muted-foreground px-2 py-1">⚠ OFFLINE DATA</span>
-            ) : apiMeta.loaded ? (
-              <span className="rounded bg-emerald-500/15 text-emerald-400 px-2 py-1">● LIVE API</span>
-            ) : (
-              <span className="rounded bg-secondary text-muted-foreground px-2 py-1">… loading</span>
-            )}
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold">
+              {apiMeta.offline ? (
+                <span className="rounded bg-amber-400/15 text-amber-400 px-2 py-1">⚠ FALLBACK DATA</span>
+              ) : apiMeta.loaded ? (
+                <span className="rounded bg-emerald-500/15 text-emerald-400 px-2 py-1">● LIVE API</span>
+              ) : (
+                <span className="rounded bg-secondary text-muted-foreground px-2 py-1">… loading</span>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Re-fetch openfootball matches"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+              <span className="hidden md:inline ml-1.5">Refresh live data</span>
+            </Button>
           </div>
         </div>
       </header>
+
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         <Tabs value={tab} onValueChange={setTab}>
