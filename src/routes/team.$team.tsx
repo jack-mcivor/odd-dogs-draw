@@ -48,13 +48,50 @@ function formatDate(iso: string, timeZone: string): string {
   return `${day} ${month}, ${hour}:${minute} ${dayPeriod}`;
 }
 
+function utcOffsetLabel(iso: string): string {
+  const mins = -new Date(iso).getTimezoneOffset();
+  const sign = mins >= 0 ? "+" : "−";
+  const abs = Math.abs(mins);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  return m === 0 ? `UTC${sign}${h}` : `UTC${sign}${h}:${String(m).padStart(2, "0")}`;
+}
+
 function LocalTime({ iso }: { iso: string }) {
   const [formatted, setFormatted] = useState<string | null>(null);
+  const [offset, setOffset] = useState<string | null>(null);
   useEffect(() => {
     setFormatted(formatDate(iso, Intl.DateTimeFormat().resolvedOptions().timeZone));
+    setOffset(utcOffsetLabel(iso));
   }, [iso]);
-  return <span>{formatted ?? formatDate(iso, "America/New_York")}</span>;
+  return (
+    <span>
+      {formatted ?? formatDate(iso, "America/New_York")}
+      {offset && <span className="text-muted-foreground/70"> ({offset})</span>}
+    </span>
+  );
 }
+
+// Pot-based Elo-style ratings used to estimate win probability.
+const POT_RATING: Record<1 | 2 | 3 | 4, number> = { 1: 2000, 2: 1850, 3: 1700, 4: 1550 };
+
+function winProbability(teamA: string, teamB: string): { win: number; draw: number; loss: number } | null {
+  const a = TEAMS[teamA];
+  const b = TEAMS[teamB];
+  if (!a || !b) return null;
+  const ra = POT_RATING[a.pot];
+  const rb = POT_RATING[b.pot];
+  const diff = ra - rb;
+  // Elo expected score for A
+  const expA = 1 / (1 + Math.pow(10, -diff / 400));
+  // Draw probability: peaks ~28% when teams are even, decays with rating gap.
+  const draw = 0.28 * Math.exp(-Math.abs(diff) / 350);
+  const rest = 1 - draw;
+  const win = rest * expA;
+  const loss = rest * (1 - expA);
+  return { win, draw, loss };
+}
+
 
 function TeamPage() {
   useAppState();
