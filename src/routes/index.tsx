@@ -115,7 +115,7 @@ function App() {
         </Tabs>
       </main>
       <footer className="text-center text-xs text-muted-foreground py-8 space-y-1">
-        <div>Shared tracker — live scores from wheniskickoff.com, refreshed every 60s.</div>
+        <div>Shared tracker — live scores from openfootball/worldcup.json, refreshed every 60s.</div>
         {apiMeta.offline && <div className="text-amber-400">⚠ Using offline fallback data — live API unavailable.</div>}
       </footer>
     </div>

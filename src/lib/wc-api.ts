@@ -1,17 +1,23 @@
-// wheniskickoff.com API integration: fetches live match data, applies scores,
-// resolves pre-assigned wildcards to real match IDs, and exposes API meta state
-// (offline status, live match IDs, UK TV channels) to the UI.
+// Live match data: fetches openfootball/worldcup.json from GitHub raw,
+// normalises team names, applies scores, resolves pre-assigned wildcards,
+// and exposes API meta state (offline status, live match IDs, UK TV channels).
+// Falls back to STATIC_MATCH_API_DATA when the live fetch fails.
 
 import { useSyncExternalStore } from "react";
 import { GROUP_MATCHES, PLAYERS, STATIC_MATCH_API_DATA, type MatchData } from "./wc-data";
 import { bulkSetScores, setAllWildcards, type WildcardUse } from "./wc-store";
 
-const BASE = "https://wheniskickoff.com/data/v1";
+const OPENFOOTBALL_URL =
+  "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json";
 
 // API name → canonical app name (only when they differ).
 const NAME_MAP: Record<string, string> = {
   "Turkey": "Türkiye",
   "Türkiye": "Türkiye",
+  "USA": "United States",
+  "United States": "United States",
+  "Czech Republic": "Czechia",
+  "Czechia": "Czechia",
   "Ivory Coast": "Côte d'Ivoire",
   "Côte d'Ivoire": "Côte d'Ivoire",
   "Bosnia-Herzegovina": "Bosnia & Herzegovina",
@@ -103,16 +109,60 @@ export function useApiMeta(): ApiMeta {
 
 // --- Fetchers -----------------------------------------------------------------
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}/${path}`, { cache: "no-store", headers:
-        {
-            "Access-Control-Allow-Origin": "https://wheniskickoff.com",
-            "Access-Control-Allow-Methods": "HEAD, GET, POST, PUT, PATCH, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "Origin, Content-Type, X-Auth-Token",
-            "Access-Control-Allow-Credentials": "true"
-        } });
+// openfootball match shape (only the fields we use).
+interface OpenFootballGoal { name: string; minute: string; penalty?: boolean; owngoal?: boolean; }
+interface OpenFootballMatch {
+  date: string;
+  time: string; // e.g. "13:00 UTC-6"
+  team1: string;
+  team2: string;
+  group?: string;
+  score?: { ft?: [number, number]; ht?: [number, number] };
+  goals1?: OpenFootballGoal[];
+  goals2?: OpenFootballGoal[];
+}
+
+// Parse "HH:MM UTC±N" + ISO date into a UTC Date.
+function parseOpenFootballDateTime(date: string, time: string): Date {
+  const m = /^(\d{2}):(\d{2})\s+UTC([+-]\d{1,2})(?::?(\d{2}))?$/.exec(time.trim());
+  if (!m) return new Date(`${date}T${time}`);
+  const [, hh, mm, offH, offM = "00"] = m;
+  const sign = offH.startsWith("-") ? "-" : "+";
+  const offHH = offH.replace(/^[+-]/, "").padStart(2, "0");
+  // ISO offset on the timestamp itself.
+  return new Date(`${date}T${hh}:${mm}:00${sign}${offHH}:${offM}`);
+}
+
+// Convert openfootball matches into the internal MatchData shape used downstream.
+function openFootballToMatchData(matches: OpenFootballMatch[]): MatchData[] {
+  return matches.map((m, i) => {
+    const dt = parseOpenFootballDateTime(m.date, m.time);
+    const finished = Array.isArray(m.score?.ft);
+    return {
+      num: i + 1,
+      date: m.date,
+      time_utc: dt.toISOString().slice(11, 16),
+      datetime_utc: dt.toISOString(),
+      home: m.team1,
+      away: m.team2,
+      home_name: m.team1,
+      away_name: m.team2,
+      group: m.group ?? null,
+      phase: "group",
+      venue: "",
+      slug: "",
+      score_home: finished ? m.score!.ft![0] : undefined,
+      score_away: finished ? m.score!.ft![1] : undefined,
+      status: finished ? "FINISHED" : "SCHEDULED",
+    } as MatchData;
+  });
+}
+
+async function fetchOpenFootball(): Promise<MatchData[]> {
+  const res = await fetch(OPENFOOTBALL_URL, { cache: "no-store" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json() as Promise<T>;
+  const json = (await res.json()) as { matches: OpenFootballMatch[] };
+  return openFootballToMatchData(json.matches ?? []);
 }
 
 async function fetchJsonStatic<T>(path: string): Promise<T> {
@@ -121,23 +171,24 @@ async function fetchJsonStatic<T>(path: string): Promise<T> {
 }
 
 export async function fetchAndApply(): Promise<void> {
-  let matchesJson, isStaticData = false;
+  let matches: MatchData[];
+  let isStaticData = false;
   try {
-    matchesJson = await fetchJson<{ data: MatchData[] }>("matches.json");
-  } catch {
-    matchesJson = STATIC_MATCH_API_DATA;
+    matches = await fetchOpenFootball();
+  } catch (e) {
+    console.warn("openfootball fetch failed, using static fallback", e);
+    matches = STATIC_MATCH_API_DATA.data;
     isStaticData = true;
-    console.log('Using static data')
   }
-    
+
   const updates: Array<{ id: string; home: number; away: number; played: boolean }> = [];
   const live = new Set<string>();
   const now = Date.now();
 
-  for (const m of matchesJson.data) {
+  for (const m of matches) {
     if (m.phase !== "group") continue;
-    const home = canonName(m.home_name!);
-    const away = canonName(m.away_name!);
+    const home = canonName(m.home_name ?? m.home ?? "");
+    const away = canonName(m.away_name ?? m.away ?? "");
     const id = findGroupMatchId(home, away);
     if (!id) continue;
 
@@ -153,9 +204,10 @@ export async function fetchAndApply(): Promise<void> {
   }
 
   bulkSetScores(updates);
-  meta = { ...meta, offline: !isStaticData, loaded: true, liveMatchIds: live, lastFetch: Date.now() };
+  meta = { ...meta, offline: isStaticData, loaded: true, liveMatchIds: live, lastFetch: Date.now() };
   emit();
 }
+
 
 export async function fetchTv(): Promise<void> {
   try {
