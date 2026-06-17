@@ -92,12 +92,30 @@ function formatDate(iso: string, timeZone: string): string {
   return `${day} ${month}, ${hour}:${minute} ${dayPeriod}`;
 }
 
+function utcOffsetLabel(iso: string): string {
+  const mins = -new Date(iso).getTimezoneOffset();
+  const sign = mins >= 0 ? "+" : "−";
+  const abs = Math.abs(mins);
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  return m === 0 ? `UTC${sign}${h}` : `UTC${sign}${h}:${String(m).padStart(2, "0")}`;
+}
+
 function LocalTime({ iso }: { iso: string }) {
   const [formatted, setFormatted] = useState<string | null>(null);
+  const [offset, setOffset] = useState<string | null>(null);
   useEffect(() => {
     setFormatted(formatDate(iso, Intl.DateTimeFormat().resolvedOptions().timeZone));
+    setOffset(utcOffsetLabel(iso));
   }, [iso]);
-  return <span>{formatted ?? formatDate(iso, "America/New_York")}</span>;
+  return (
+    <span>
+      {formatted ?? formatDate(iso, "America/New_York")}
+      {offset && <span className="text-muted-foreground/70"> ({offset})</span>}
+    </span>
+  );
+}
+
 }
 
 function App() {
