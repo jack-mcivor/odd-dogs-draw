@@ -414,15 +414,30 @@ function FixtureRow({ match }: { match: Match }) {
 
 /* ---------------- PLAYERS ---------------- */
 
-function PlayersTab() {
+function PlayersTab({ focusPlayer, onConsumeFocus }: { focusPlayer: string | null; onConsumeFocus: () => void }) {
   const totals = computeAllTotals();
+  useEffect(() => {
+    if (!focusPlayer) return;
+    const el = document.getElementById(`player-card-${focusPlayer}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    const t = setTimeout(onConsumeFocus, 2000);
+    return () => clearTimeout(t);
+  }, [focusPlayer, onConsumeFocus]);
   return (
     <div className="grid md:grid-cols-2 gap-4">
       {totals.map((p, i) => {
         const player = PLAYERS.find((x) => x.name === p.player)!;
         const used = getState().wildcards[p.player] ?? [];
+        const isFocused = focusPlayer === p.player;
         return (
-          <Card key={p.player} className="p-4 bg-card border-border">
+          <Card
+            key={p.player}
+            id={`player-card-${p.player}`}
+            className={`p-4 bg-card border-border transition ${isFocused ? "ring-2 ring-primary" : ""}`}
+          >
+
             <div className="flex items-center justify-between mb-3">
               <div>
                 <div className="text-[11px] text-muted-foreground">Rank #{i + 1}</div>
