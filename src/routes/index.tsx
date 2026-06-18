@@ -382,6 +382,16 @@ function Fixtures() {
           </SelectContent>
         </Select>
       </div>
+      <div className="flex items-center gap-2 mb-4">
+        <Switch
+          id="show-completed"
+          checked={showCompleted}
+          onCheckedChange={setShowCompleted}
+        />
+        <Label htmlFor="show-completed" className="text-sm cursor-pointer">
+          Show completed fixtures
+        </Label>
+      </div>
       <div className="space-y-2">
         {filtered.map((m) => <FixtureRow key={m.id} match={m} />)}
         {filtered.length === 0 && <p className="text-center text-muted-foreground py-12">No matches match those filters.</p>}
