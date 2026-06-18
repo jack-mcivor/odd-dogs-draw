@@ -363,7 +363,32 @@ function Fixtures() {
             <SelectItem value="SF">Semi-finals</SelectItem>
             <SelectItem value="3rd">Third-place</SelectItem>
             <SelectItem value="Final">Final</SelectItem>
-          :content: [truncated for brevity]
+          </SelectContent>
+        </Select>
+        <Select value={player} onValueChange={setPlayer}>
+          <SelectTrigger><SelectValue placeholder="Player" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All players</SelectItem>
+            {PLAYERS.map((p) => <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={team} onValueChange={setTeam}>
+          <SelectTrigger><SelectValue placeholder="Team" /></SelectTrigger>
+          <SelectContent className="max-h-72">
+            <SelectItem value="all">All teams</SelectItem>
+            {Object.keys(TEAMS).sort().map((t) => (
+              <SelectItem key={t} value={t}>{TEAMS[t].flag} {t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        {filtered.map((m) => <FixtureRow key={m.id} match={m} />)}
+        {filtered.length === 0 && <p className="text-center text-muted-foreground py-12">No matches match those filters.</p>}
+      </div>
+    </div>
+  );
+}
 
 function FixtureRow({ match }: { match: Match }) {
   const state = getState();
