@@ -405,22 +405,25 @@ function FixtureRow({ match }: { match: Match }) {
   const apiMeta = useApiMeta();
   const score = state.scores[match.id];
   const e = effectiveTeams(match);
-  const [home, setHome] = useState(score?.home?.toString() ?? "");
-  const [away, setAway] = useState(score?.away?.toString() ?? "");
-  const wildcardApplied = match.stage === "group" && Object.values(state.wildcards).some((arr) =>
-    arr.some((u) => u.matchId === match.id)
-  );
+  // Which teams have a wildcard applied to this match (by pot match on each side)
+  const wildcardTeams: string[] = [];
+  if (match.stage === "group") {
+    for (const uses of Object.values(state.wildcards)) {
+      for (const u of uses) {
+        if (u.matchId !== match.id) continue;
+        for (const side of [e.home, e.away]) {
+          if (side && TEAMS[side]?.pot === u.pot && !wildcardTeams.includes(side)) {
+            wildcardTeams.push(side);
+          }
+        }
+      }
+    }
+  }
   const isLive = apiMeta.liveMatchIds.has(match.id) && !score?.played;
   const ukTv = apiMeta.ukChannels.map((c) => c.name).join(" / ");
 
   const ownerH = teamOwner(e.home);
   const ownerA = teamOwner(e.away);
-  const canSave = home !== "" && away !== "" && e.home && e.away;
-
-  function save() {
-    if (!canSave) return;
-    setScore(match.id, Number(home) || 0, Number(away) || 0, true);
-  }
 
   const stageLabel = match.stage === "group" ? `Group ${match.group}` : match.stage;
 
@@ -435,17 +438,17 @@ function FixtureRow({ match }: { match: Match }) {
             <span className="hidden md:inline">· 📺 UK: {ukTv}</span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
           {isLive && (
             <span className="inline-flex items-center gap-1 rounded bg-red-500 text-white px-1.5 py-0.5 font-black text-[10px] animate-pulse">
               ● LIVE
             </span>
           )}
-          {wildcardApplied && (
-            <span className="inline-flex items-center gap-1 rounded bg-primary text-primary-foreground px-1.5 py-0.5 font-black text-[10px]">
-              WC ×2
+          {wildcardTeams.map((t) => (
+            <span key={t} className="inline-flex items-center gap-1 rounded bg-primary text-primary-foreground px-1.5 py-0.5 font-black text-[10px]">
+              WC ×2 · {TEAMS[t]?.flag} {t}
             </span>
-          )}
+          ))}
         </div>
       </div>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -453,22 +456,16 @@ function FixtureRow({ match }: { match: Match }) {
           <TeamChip team={e.home} />
           {ownerH && <div className="text-[10px] text-muted-foreground mt-0.5">{ownerH}</div>}
         </div>
-        <div className="flex items-center gap-1">
-          <Input
-            type="number" min={0} value={home} onChange={(ev) => setHome(ev.target.value)}
-            className="w-12 h-9 text-center font-bold p-1"
-            disabled={!e.home}
-            onBlur={save}
-            onKeyDown={(e) => { if (e.key === "Enter") save(); }}
-          />
-          <span className="text-muted-foreground">–</span>
-          <Input
-            type="number" min={0} value={away} onChange={(ev) => setAway(ev.target.value)}
-            className="w-12 h-9 text-center font-bold p-1"
-            disabled={!e.away}
-            onBlur={save}
-            onKeyDown={(e) => { if (e.key === "Enter") save(); }}
-          />
+        <div className="flex items-center justify-center gap-2 font-black tabular-nums text-lg min-w-[80px]">
+          {score?.played ? (
+            <>
+              <span>{score.home}</span>
+              <span className="text-muted-foreground">–</span>
+              <span>{score.away}</span>
+            </>
+          ) : (
+            <span className="text-muted-foreground text-xs font-normal">vs</span>
+          )}
         </div>
         <div className="text-left">
           <TeamChip team={e.away} />
@@ -476,9 +473,7 @@ function FixtureRow({ match }: { match: Match }) {
         </div>
       </div>
       {score?.played && (
-        <div className="flex items-center justify-end gap-2 mt-2">
-          <span className="text-[10px] text-muted-foreground mr-auto">Saved (live API)</span>
-        </div>
+        <div className="text-[10px] text-muted-foreground mt-2">Final (live API)</div>
       )}
     </Card>
   );
