@@ -3,6 +3,7 @@ import {
   ALL_MATCHES, GROUP_MATCHES, KNOCKOUT_MATCHES, PLAYERS, TEAMS,
   teamOwner, type Match,
 } from "./wc-data";
+import { getLiveMatch } from "./wc-live";
 
 export interface MatchScore {
   home: number;
