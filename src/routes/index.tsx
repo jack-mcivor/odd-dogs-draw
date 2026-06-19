@@ -618,17 +618,21 @@ function PlayersTab({ focusPlayer, onConsumeFocus }: { focusPlayer: string | nul
                     </div>
                     {t && t.matches.length > 0 && (
                       <div className="mt-1.5 space-y-0.5">
-                        {t.matches.map(({ match, points }) => {
+                        {t.matches.map(({ match, points, live }) => {
                           const e = effectiveTeams(match);
                           const opp = e.home === team ? e.away : e.home;
-                          const s = getState().scores[match.id]!;
-                          const my = e.home === team ? s.home : s.away;
-                          const th = e.home === team ? s.away : s.home;
+                          const ds = displayScore(match.id);
+                          const my = ds ? (e.home === team ? ds.home : ds.away) : 0;
+                          const th = ds ? (e.home === team ? ds.away : ds.home) : 0;
                           return (
-                            <div key={match.id} className="flex items-center justify-between text-[11px] text-muted-foreground">
-                              <span>vs {TEAMS[opp]?.flag} {opp} · {my}–{th}</span>
-                              <span className="text-primary font-bold">+{points.total}{points.wildcardBonus > 0 ? " ⚡" : ""}</span>
-                            </div>
+                            <MatchRow
+                              key={`${match.id}-${live ? "L" : "F"}`}
+                              matchId={match.id}
+                              label={`vs ${TEAMS[opp]?.flag ?? ""} ${opp} · ${my}–${th}`}
+                              points={points.total}
+                              hasWC={points.wildcardBonus > 0}
+                              live={!!live}
+                            />
                           );
                         })}
                       </div>
