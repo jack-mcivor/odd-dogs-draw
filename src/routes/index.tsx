@@ -1,14 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { fetchAndApply, initApi, useApiMeta, WILDCARD_ASSIGNMENTS } from "@/lib/wc-api";
+import { initLive, useLiveMatch, useLiveState } from "@/lib/wc-live";
 import {
   ALL_MATCHES, GROUP_MATCHES, GROUPS, GROUP_LETTERS, KNOCKOUT_MATCHES,
   PLAYERS, POT_LABEL_CLASS, TEAMS, teamGroup, teamOwner, type Match, type Pot,
 } from "@/lib/wc-data";
 import {
-  computeAllTotals, effectiveTeams, getState, isTeamEliminated, loadFromStorage,
-  nextUpcoming, recentResults, setKnockoutSlot, setScore, useAppState,
+  computeAllTotals, displayScore, effectiveTeams, getState, isMatchLive,
+  isTeamEliminated, loadFromStorage, nextUpcoming, recentResults,
+  setKnockoutSlot, setScore, useAppState,
 } from "@/lib/wc-store";
+import { MatchDetailProvider, useMatchDetail } from "@/components/MatchDetailModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -122,12 +125,13 @@ function LocalTime({ iso }: { iso: string }) {
 
 function App() {
   useAppState();
+  useLiveState();
   const apiMeta = useApiMeta();
   const [tab, setTab] = useState("dashboard");
   const [refreshing, setRefreshing] = useState(false);
   const [focusPlayer, setFocusPlayer] = useState<string | null>(null);
 
-  useEffect(() => { loadFromStorage(); initApi(); }, []);
+  useEffect(() => { loadFromStorage(); initApi(); initLive(); }, []);
 
   const handleRefresh = async () => {
     if (refreshing) return;
@@ -141,6 +145,7 @@ function App() {
   };
 
   return (
+    <MatchDetailProvider>
     <div className="min-h-screen text-foreground">
       <header className="border-b border-border bg-card/60 backdrop-blur sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
@@ -206,6 +211,7 @@ function App() {
         {apiMeta.offline && <div className="text-amber-400">⚠ Using offline fallback data — live API unavailable.</div>}
       </footer>
     </div>
+    </MatchDetailProvider>
   );
 }
 
@@ -255,12 +261,23 @@ function Dashboard({ onSelectPlayer }: { onSelectPlayer: (name: string) => void 
                 {i + 1}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold truncate">{p.player}</div>
+                <div className="font-bold truncate flex items-center gap-1.5">
+                  {p.player}
+                  {p.hasLive && (
+                    <span className="inline-flex items-center gap-1 rounded bg-red-500 text-white px-1 py-0 text-[9px] font-black animate-pulse">● LIVE</span>
+                  )}
+                </div>
                 <div className="text-[11px] text-muted-foreground">
                   Win {p.winPts} · Goals {p.goalPts}{p.wildcardBonus ? ` · WC +${p.wildcardBonus}` : ""}
+                  {p.livePts > 0 && <span className="text-amber-400"> · +{p.livePts} live</span>}
                 </div>
               </div>
-              <div className="text-2xl font-black text-primary tabular-nums">{p.total}</div>
+              <div className="text-right">
+                <div className="text-2xl font-black text-primary tabular-nums">{p.total}</div>
+                {p.livePts > 0 && (
+                  <div className="text-[10px] text-amber-400 italic tabular-nums">→ {p.projectedTotal}</div>
+                )}
+              </div>
             </button>
           ))}
         </div>
@@ -298,12 +315,34 @@ function Dashboard({ onSelectPlayer }: { onSelectPlayer: (name: string) => void 
 
 function MiniFixture({ match }: { match: Match }) {
   const e = effectiveTeams(match);
+  const live = useLiveMatch(match.id);
+  const isLive = live?.liveStatus === "LIVE";
+  const { open } = useMatchDetail();
   return (
-    <div className="rounded-md bg-secondary/40 px-3 py-2 text-sm">
-      <div className="text-[10px] text-muted-foreground mb-0.5"><LocalTime iso={match.date} /> · {match.city}</div>
-      <div className="flex items-center justify-between">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => open(match.id)}
+      onKeyDown={(ev) => { if (ev.key === "Enter") open(match.id); }}
+      className="rounded-md bg-secondary/40 px-3 py-2 text-sm cursor-pointer hover:bg-secondary/70 transition"
+    >
+      <div className="text-[10px] text-muted-foreground mb-0.5 flex items-center gap-2">
+        {isLive ? (
+          <span className="inline-flex items-center gap-1 rounded bg-red-500 text-white px-1 py-0 font-black text-[9px] animate-pulse">
+            ● LIVE{live?.timeElapsed ? ` ${live.timeElapsed === "HT" ? "HT" : `${live.timeElapsed}'`}` : ""}
+          </span>
+        ) : (
+          <span><LocalTime iso={match.date} /></span>
+        )}
+        <span className="text-muted-foreground/70">· {match.city}</span>
+      </div>
+      <div className="flex items-center justify-between gap-2">
         <TeamChip team={e.home} />
-        <span className="text-muted-foreground text-xs">vs</span>
+        {isLive && live ? (
+          <span className="font-black text-primary tabular-nums">{live.liveScoreHome}–{live.liveScoreAway}</span>
+        ) : (
+          <span className="text-muted-foreground text-xs">vs</span>
+        )}
         <TeamChip team={e.away} />
       </div>
     </div>
@@ -311,16 +350,32 @@ function MiniFixture({ match }: { match: Match }) {
 }
 
 function MiniResult({ match }: { match: Match }) {
-  const s = getState().scores[match.id];
+  const ds = displayScore(match.id);
   const e = effectiveTeams(match);
+  const live = useLiveMatch(match.id);
+  const { open } = useMatchDetail();
+  const scorers = [...(live?.homeScorers ?? []), ...(live?.awayScorers ?? [])];
+  const shown = scorers.slice(0, 3);
+  const extra = scorers.length - shown.length;
   return (
-    <div className="rounded-md bg-secondary/40 px-3 py-2 text-sm">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => open(match.id)}
+      onKeyDown={(ev) => { if (ev.key === "Enter") open(match.id); }}
+      className="rounded-md bg-secondary/40 px-3 py-2 text-sm cursor-pointer hover:bg-secondary/70 transition"
+    >
       <div className="text-[10px] text-muted-foreground mb-0.5"><LocalTime iso={match.date} /></div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <TeamChip team={e.home} />
-        <span className="font-black text-primary tabular-nums">{s?.home ?? 0}–{s?.away ?? 0}</span>
+        <span className="font-black text-primary tabular-nums">{ds?.home ?? 0}–{ds?.away ?? 0}</span>
         <TeamChip team={e.away} />
       </div>
+      {scorers.length > 0 && (
+        <div className="text-[10px] text-muted-foreground mt-1 truncate">
+          ⚽ {shown.join(", ")}{extra > 0 ? ` +${extra} more` : ""}
+        </div>
+      )}
     </div>
   );
 }
@@ -332,7 +387,7 @@ function Fixtures() {
   const [player, setPlayer] = useState<string>("all");
   const [team, setTeam] = useState<string>("all");
   const [showCompleted, setShowCompleted] = useState(false);
-  const state = getState();
+  const liveState = useLiveState();
 
   const filtered = useMemo(() => {
     return ALL_MATCHES.filter((m) => {
@@ -344,10 +399,11 @@ function Fixtures() {
         const ownerA = teamOwner(e.away);
         if (ownerH !== player && ownerA !== player) return false;
       }
-      if (!showCompleted && state.scores[m.id]?.played) return false;
+      const ds = displayScore(m.id);
+      if (!showCompleted && ds?.played) return false;
       return true;
     });
-  }, [stage, player, team, showCompleted]);
+  }, [stage, player, team, showCompleted, liveState]);
 
   return (
     <div>
@@ -392,6 +448,15 @@ function Fixtures() {
           Show completed fixtures
         </Label>
       </div>
+      <div className="flex items-center justify-between mb-2 text-[11px] text-muted-foreground min-h-[18px]">
+        <span>{filtered.length} match{filtered.length === 1 ? "" : "es"}</span>
+        {liveState.loading && (
+          <span className="inline-flex items-center gap-1.5 opacity-70">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Live data loading…
+          </span>
+        )}
+      </div>
       <div className="space-y-2">
         {filtered.map((m) => <FixtureRow key={m.id} match={m} />)}
         {filtered.length === 0 && <p className="text-center text-muted-foreground py-12">No matches match those filters.</p>}
@@ -419,8 +484,11 @@ function FixtureRow({ match }: { match: Match }) {
       }
     }
   }
-  const isLive = apiMeta.liveMatchIds.has(match.id) && !score?.played;
+  const live = useLiveMatch(match.id);
+  const isLive = (live?.liveStatus === "LIVE") || (apiMeta.liveMatchIds.has(match.id) && !score?.played);
+  const ds = displayScore(match.id);
   const ukTv = apiMeta.ukChannels.map((c) => c.name).join(" / ");
+  const { open } = useMatchDetail();
 
   const ownerH = teamOwner(e.home);
   const ownerA = teamOwner(e.away);
@@ -428,7 +496,13 @@ function FixtureRow({ match }: { match: Match }) {
   const stageLabel = match.stage === "group" ? `Group ${match.group}` : match.stage;
 
   return (
-    <Card className="p-3 md:p-4 bg-card border-border">
+    <Card
+      className="p-3 md:p-4 bg-card border-border cursor-pointer hover:ring-2 hover:ring-primary/30 transition"
+      onClick={() => open(match.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(ev) => { if (ev.key === "Enter") open(match.id); }}
+    >
       <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2 gap-2">
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className="border-primary/40 text-primary">{stageLabel}</Badge>
@@ -441,7 +515,7 @@ function FixtureRow({ match }: { match: Match }) {
         <div className="flex items-center gap-1.5 flex-wrap justify-end">
           {isLive && (
             <span className="inline-flex items-center gap-1 rounded bg-red-500 text-white px-1.5 py-0.5 font-black text-[10px] animate-pulse">
-              ● LIVE
+              ● LIVE{live?.timeElapsed ? ` ${live.timeElapsed === "HT" ? "HT" : `${live.timeElapsed}'`}` : ""}
             </span>
           )}
           {wildcardTeams.map((t) => (
@@ -457,11 +531,11 @@ function FixtureRow({ match }: { match: Match }) {
           {ownerH && <div className="text-[10px] text-muted-foreground mt-0.5">{ownerH}</div>}
         </div>
         <div className="flex items-center justify-center gap-2 font-black tabular-nums text-lg min-w-[80px]">
-          {score?.played ? (
+          {ds ? (
             <>
-              <span>{score.home}</span>
+              <span>{ds.home}</span>
               <span className="text-muted-foreground">–</span>
-              <span>{score.away}</span>
+              <span>{ds.away}</span>
             </>
           ) : (
             <span className="text-muted-foreground text-xs font-normal">vs</span>
@@ -472,8 +546,8 @@ function FixtureRow({ match }: { match: Match }) {
           {ownerA && <div className="text-[10px] text-muted-foreground mt-0.5">{ownerA}</div>}
         </div>
       </div>
-      {score?.played && (
-        <div className="text-[10px] text-muted-foreground mt-2">Final (live API)</div>
+      {ds?.played && (
+        <div className="text-[10px] text-muted-foreground mt-2">Full time</div>
       )}
     </Card>
   );
@@ -544,17 +618,21 @@ function PlayersTab({ focusPlayer, onConsumeFocus }: { focusPlayer: string | nul
                     </div>
                     {t && t.matches.length > 0 && (
                       <div className="mt-1.5 space-y-0.5">
-                        {t.matches.map(({ match, points }) => {
+                        {t.matches.map(({ match, points, live }) => {
                           const e = effectiveTeams(match);
                           const opp = e.home === team ? e.away : e.home;
-                          const s = getState().scores[match.id]!;
-                          const my = e.home === team ? s.home : s.away;
-                          const th = e.home === team ? s.away : s.home;
+                          const ds = displayScore(match.id);
+                          const my = ds ? (e.home === team ? ds.home : ds.away) : 0;
+                          const th = ds ? (e.home === team ? ds.away : ds.home) : 0;
                           return (
-                            <div key={match.id} className="flex items-center justify-between text-[11px] text-muted-foreground">
-                              <span>vs {TEAMS[opp]?.flag} {opp} · {my}–{th}</span>
-                              <span className="text-primary font-bold">+{points.total}{points.wildcardBonus > 0 ? " ⚡" : ""}</span>
-                            </div>
+                            <MatchRow
+                              key={`${match.id}-${live ? "L" : "F"}`}
+                              matchId={match.id}
+                              label={`vs ${TEAMS[opp]?.flag ?? ""} ${opp} · ${my}–${th}`}
+                              points={points.total}
+                              hasWC={points.wildcardBonus > 0}
+                              live={!!live}
+                            />
                           );
                         })}
                       </div>
@@ -569,6 +647,29 @@ function PlayersTab({ focusPlayer, onConsumeFocus }: { focusPlayer: string | nul
     </div>
   );
 }
+
+function MatchRow({ matchId, label, points, hasWC, live }: { matchId: string; label: string; points: number; hasWC: boolean; live: boolean }) {
+  const { open } = useMatchDetail();
+  return (
+    <button
+      type="button"
+      onClick={() => open(matchId)}
+      className="w-full flex items-center justify-between gap-2 text-[11px] text-muted-foreground hover:text-foreground transition text-left"
+    >
+      <span className="truncate flex items-center gap-1">
+        {live && (
+          <span className="inline-flex items-center gap-0.5 rounded bg-red-500 text-white px-1 py-0 text-[9px] font-black animate-pulse">●LIVE</span>
+        )}
+        {label}
+      </span>
+      <span className={`font-bold ${live ? "italic text-amber-400" : "text-primary"}`}>
+        {live ? "~" : "+"}{points}{hasWC ? " ⚡" : ""}
+      </span>
+    </button>
+  );
+}
+
+
 
 /* ---------------- WILDCARDS ---------------- */
 

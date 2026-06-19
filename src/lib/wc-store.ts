@@ -3,6 +3,7 @@ import {
   ALL_MATCHES, GROUP_MATCHES, KNOCKOUT_MATCHES, PLAYERS, TEAMS,
   teamOwner, type Match,
 } from "./wc-data";
+import { getLiveMatch } from "./wc-live";
 
 export interface MatchScore {
   home: number;
@@ -159,19 +160,48 @@ export interface MatchPoints {
   total: number;
 }
 
-// Compute points awarded to each team in a single played match.
-export function pointsForMatch(m: Match): MatchPoints[] {
+// Returns the effective confirmed score for a match. Prefers live FINISHED
+// data from worldcup26.ir over locally stored scores. Returns undefined if
+// the match is not finished.
+export function effectiveScore(matchId: string): { home: number; away: number } | undefined {
+  const live = getLiveMatch(matchId);
+  if (live && live.liveStatus === "FINISHED") {
+    return { home: live.liveScoreHome, away: live.liveScoreAway };
+  }
+  const s = state.scores[matchId];
+  if (s?.played) return { home: s.home, away: s.away };
+  return undefined;
+}
+
+// Score to use for display in any context: confirmed first, then in-progress live.
+export function displayScore(matchId: string): { home: number; away: number; live: boolean; played: boolean } | undefined {
+  const live = getLiveMatch(matchId);
+  if (live && live.liveStatus === "FINISHED") {
+    return { home: live.liveScoreHome, away: live.liveScoreAway, live: false, played: true };
+  }
+  if (live && live.liveStatus === "LIVE") {
+    return { home: live.liveScoreHome, away: live.liveScoreAway, live: true, played: false };
+  }
+  const s = state.scores[matchId];
+  if (s?.played) return { home: s.home, away: s.away, live: false, played: true };
+  return undefined;
+}
+
+export function isMatchLive(matchId: string): boolean {
+  return getLiveMatch(matchId)?.liveStatus === "LIVE";
+}
+
+function computeMatchPointsFromScore(
+  m: Match,
+  score: { home: number; away: number },
+): MatchPoints[] {
   const out: MatchPoints[] = [];
-  const score = state.scores[m.id];
-  if (!score || !score.played) return out;
   const { home, away } = effectiveTeams(m);
   if (!home || !away) return out;
-
   const teams: Array<{ name: string; goals: number; opp: number }> = [
     { name: home, goals: score.home, opp: score.away },
     { name: away, goals: score.away, opp: score.home },
   ];
-
   for (const t of teams) {
     const teamData = TEAMS[t.name];
     if (!teamData) continue;
@@ -181,7 +211,6 @@ export function pointsForMatch(m: Match): MatchPoints[] {
     if (t.goals > t.opp) winPts = pot;
     else if (t.goals === t.opp) winPts = pot / 2;
     const goalPts = t.goals * pot;
-
     let multiplier = 1;
     if (m.stage === "group" && player) {
       const used = state.wildcards[player] ?? [];
@@ -190,18 +219,28 @@ export function pointsForMatch(m: Match): MatchPoints[] {
     const baseTotal = winPts + goalPts;
     const total = baseTotal * multiplier;
     const wildcardBonus = total - baseTotal;
-
     out.push({
-      team: t.name,
-      player,
-      pot,
+      team: t.name, player, pot,
       winPts: winPts * multiplier,
       goalPts: goalPts * multiplier,
-      wildcardBonus,
-      total,
+      wildcardBonus, total,
     });
   }
   return out;
+}
+
+// Compute confirmed points for a played match (live FINISHED overrides local).
+export function pointsForMatch(m: Match): MatchPoints[] {
+  const score = effectiveScore(m.id);
+  if (!score) return [];
+  return computeMatchPointsFromScore(m, score);
+}
+
+// Projected points from an in-progress LIVE match. Returns [] when not live.
+export function pointsForMatchLive(m: Match): MatchPoints[] {
+  const live = getLiveMatch(m.id);
+  if (!live || live.liveStatus !== "LIVE") return [];
+  return computeMatchPointsFromScore(m, { home: live.liveScoreHome, away: live.liveScoreAway });
 }
 
 export interface PlayerTotals {
@@ -210,7 +249,10 @@ export interface PlayerTotals {
   goalPts: number;
   wildcardBonus: number;
   total: number;
-  perTeam: Record<string, { winPts: number; goalPts: number; wildcardBonus: number; total: number; matches: Array<{ match: Match; points: MatchPoints }> }>;
+  livePts: number;          // projected from currently LIVE matches only
+  projectedTotal: number;   // total + livePts
+  hasLive: boolean;         // any of the player's teams currently in a LIVE match
+  perTeam: Record<string, { winPts: number; goalPts: number; wildcardBonus: number; total: number; matches: Array<{ match: Match; points: MatchPoints; live?: boolean }> }>;
 }
 
 export function computeAllTotals(): PlayerTotals[] {
@@ -219,12 +261,13 @@ export function computeAllTotals(): PlayerTotals[] {
     map[p.name] = {
       player: p.name,
       winPts: 0, goalPts: 0, wildcardBonus: 0, total: 0,
+      livePts: 0, projectedTotal: 0, hasLive: false,
       perTeam: Object.fromEntries(p.teams.map((t) => [t.team, { winPts: 0, goalPts: 0, wildcardBonus: 0, total: 0, matches: [] }])),
     };
   }
   for (const m of ALL_MATCHES) {
-    const pts = pointsForMatch(m);
-    for (const p of pts) {
+    const confirmed = pointsForMatch(m);
+    for (const p of confirmed) {
       if (!p.player) continue;
       const player = map[p.player];
       player.winPts += p.winPts;
@@ -240,9 +283,22 @@ export function computeAllTotals(): PlayerTotals[] {
         t.matches.push({ match: m, points: p });
       }
     }
+    const live = pointsForMatchLive(m);
+    for (const p of live) {
+      if (!p.player) continue;
+      const player = map[p.player];
+      player.livePts += p.total;
+      player.hasLive = true;
+      const t = player.perTeam[p.team];
+      if (t) t.matches.push({ match: m, points: p, live: true });
+    }
   }
-  return Object.values(map).sort((a, b) => b.total - a.total);
+  for (const player of Object.values(map)) {
+    player.projectedTotal = player.total + player.livePts;
+  }
+  return Object.values(map).sort((a, b) => b.projectedTotal - a.projectedTotal || b.total - a.total);
 }
+
 
 // A team is "eliminated" if any match in the knockout stage they were assigned to has been played and they lost.
 // Simpler heuristic: eliminated if all their played group matches are done AND they didn't advance (not in any knockout slot)
@@ -269,17 +325,21 @@ export function nextUpcoming(n: number): Match[] {
       const { home, away } = effectiveTeams(m);
       return home && away;
     })
-    .filter((m) => new Date(m.date).getTime() >= now - 1000 * 60 * 60 * 2)
-    .filter((m) => !state.scores[m.id]?.played)
-    .sort((a, b) => a.date.localeCompare(b.date))
+    .filter((m) => new Date(m.date).getTime() >= now - 1000 * 60 * 60 * 4)
+    .filter((m) => !effectiveScore(m.id))
+    .sort((a, b) => {
+      // LIVE matches first
+      const al = isMatchLive(a.id) ? 0 : 1;
+      const bl = isMatchLive(b.id) ? 0 : 1;
+      if (al !== bl) return al - bl;
+      return a.date.localeCompare(b.date);
+    })
     .slice(0, n);
 }
 
 export function recentResults(n: number): Match[] {
-  const now = Date.now();
   return ALL_MATCHES
-    .filter((m) => state.scores[m.id]?.played)
-    .filter((m) => new Date(m.date).getTime() <= now)
+    .filter((m) => !!effectiveScore(m.id))
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, n);
 }
