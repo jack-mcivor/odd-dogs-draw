@@ -448,6 +448,15 @@ function Fixtures() {
           Show completed fixtures
         </Label>
       </div>
+      <div className="flex items-center justify-between mb-2 text-[11px] text-muted-foreground min-h-[18px]">
+        <span>{filtered.length} match{filtered.length === 1 ? "" : "es"}</span>
+        {liveState.loading && (
+          <span className="inline-flex items-center gap-1.5 opacity-70">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Live data loading…
+          </span>
+        )}
+      </div>
       <div className="space-y-2">
         {filtered.map((m) => <FixtureRow key={m.id} match={m} />)}
         {filtered.length === 0 && <p className="text-center text-muted-foreground py-12">No matches match those filters.</p>}
