@@ -3,7 +3,7 @@
 // Fails silently on any error.
 
 import { useSyncExternalStore } from "react";
-import { ALL_MATCHES, GROUP_MATCHES, type Match } from "./wc-data";
+import { ALL_MATCHES, type Match } from "./wc-data";
 import { canonName } from "./wc-api";
 
 const ENDPOINT = "https://worldcup26.ir/get/games";
