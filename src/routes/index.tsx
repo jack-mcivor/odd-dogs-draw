@@ -125,6 +125,7 @@ function LocalTime({ iso }: { iso: string }) {
 
 function App() {
   useAppState();
+  useLiveState();
   const apiMeta = useApiMeta();
   const [tab, setTab] = useState("dashboard");
   const [refreshing, setRefreshing] = useState(false);
