@@ -261,12 +261,23 @@ function Dashboard({ onSelectPlayer }: { onSelectPlayer: (name: string) => void 
                 {i + 1}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold truncate">{p.player}</div>
+                <div className="font-bold truncate flex items-center gap-1.5">
+                  {p.player}
+                  {p.hasLive && (
+                    <span className="inline-flex items-center gap-1 rounded bg-red-500 text-white px-1 py-0 text-[9px] font-black animate-pulse">● LIVE</span>
+                  )}
+                </div>
                 <div className="text-[11px] text-muted-foreground">
                   Win {p.winPts} · Goals {p.goalPts}{p.wildcardBonus ? ` · WC +${p.wildcardBonus}` : ""}
+                  {p.livePts > 0 && <span className="text-amber-400"> · +{p.livePts} live</span>}
                 </div>
               </div>
-              <div className="text-2xl font-black text-primary tabular-nums">{p.total}</div>
+              <div className="text-right">
+                <div className="text-2xl font-black text-primary tabular-nums">{p.total}</div>
+                {p.livePts > 0 && (
+                  <div className="text-[10px] text-amber-400 italic tabular-nums">→ {p.projectedTotal}</div>
+                )}
+              </div>
             </button>
           ))}
         </div>
