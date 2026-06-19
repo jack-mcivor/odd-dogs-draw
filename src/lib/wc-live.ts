@@ -75,11 +75,14 @@ interface RawGame {
 }
 
 function parseScorers(raw: string | null | undefined): string[] {
-  if (!raw || raw === "{}") return [];
+  if (!raw || raw === "{}" || raw === "null" || raw === "NULL") return [];
   const inner = raw.replace(/^\{/, "").replace(/\}$/, "");
-  const matches = inner.match(/"([^"]+)"/g);
+  // Accept straight (") and curly (“ ” ‟ „) quote variants.
+  const matches = inner.match(/["“”‟„]([^"“”‟„]+)["“”‟„]/g);
   if (!matches) return [];
-  return matches.map((m) => m.replace(/^"|"$/g, ""));
+  return matches
+    .map((m) => m.replace(/^["“”‟„]|["“”‟„]$/g, "").trim())
+    .filter((s) => s.length > 0 && s.toLowerCase() !== "null");
 }
 
 function deriveStatus(finished: string | undefined, timeElapsed: string | undefined): LiveStatus {
@@ -203,5 +206,5 @@ export function initLive() {
   if (started || typeof window === "undefined") return;
   started = true;
   fetchLive();
-  window.setInterval(fetchLive, 60_000);
+  window.setInterval(fetchLive, 120_000);
 }
