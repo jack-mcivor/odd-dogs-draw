@@ -153,7 +153,7 @@ export async function fetchLive(): Promise<void> {
     const res = await fetch(ENDPOINT, { signal: controller.signal, cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
-    if (!json || json.success !== true || !Array.isArray(json.data)) {
+    if (!json || !Array.isArray(json.games)) {
       console.warn("worldcup26.ir: unexpected payload shape");
       state = { ...state, loading: false, loaded: true };
       emit();
@@ -162,7 +162,7 @@ export async function fetchLive(): Promise<void> {
     // Start from existing cache so historic matches (which the API may have
     // dropped) keep their scorers and final scores available.
     const byMatchId: Record<string, LiveMatch> = { ...state.byMatchId };
-    for (const raw of json.data as RawGame[]) {
+    for (const raw of json.games as RawGame[]) {
       try {
         const m = findMatch(raw);
         if (!m) continue;
