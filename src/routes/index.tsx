@@ -1185,7 +1185,7 @@ function GroupTable({
                 <td className="text-right tabular-nums text-muted-foreground">{st.p}</td>
                 <td className="text-right tabular-nums text-muted-foreground">{st.gf}:{st.ga}</td>
                 <td className="text-right tabular-nums font-bold w-6">{st.pts}</td>
-                <td className="text-right w-12" title={`Qualify ${(p.q*100).toFixed(0)}% · 3rd ${(p.t*100).toFixed(0)}% · Eliminated ${(p.e*100).toFixed(1)}%`}>
+                <td className="text-right w-12" title={`Progression ${((p.q+p.t)*100).toFixed(1)}% · Qualify ${(p.q*100).toFixed(0)}% · 3rd ${(p.t*100).toFixed(0)}%`}>
                   {badge}
                 </td>
               </tr>
