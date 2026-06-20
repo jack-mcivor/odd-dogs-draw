@@ -364,19 +364,14 @@ function MiniResult({ match }: { match: Match }) {
       className="rounded-md bg-secondary/40 px-3 py-2 text-sm cursor-pointer hover:bg-secondary/70 transition"
     >
       <div className="text-[10px] text-muted-foreground mb-0.5"><LocalTime iso={match.date} /></div>
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-2 gap-y-0.5">
         <TeamChip team={e.home} />
-        <span className="font-black text-primary tabular-nums">{ds?.home ?? 0}–{ds?.away ?? 0}</span>
+        <span className="font-black text-primary tabular-nums row-span-2 self-center">{ds?.home ?? 0}–{ds?.away ?? 0}</span>
         <div className="justify-self-end"><TeamChip team={e.away} /></div>
         {hasScorers && (
           <>
-            <div className="text-[10px] text-muted-foreground mt-1 leading-tight">
-              {homeScorers.map((s, i) => <div key={i} className="truncate">⚽ {s}</div>)}
-            </div>
-            <div />
-            <div className="text-[10px] text-muted-foreground mt-1 leading-tight text-right">
-              {awayScorers.map((s, i) => <div key={i} className="truncate">⚽ {s}</div>)}
-            </div>
+            <div className="text-[10px] text-muted-foreground truncate">⚽ {homeScorers.join(" · ")}</div>
+            <div className="text-[10px] text-muted-foreground truncate text-right">⚽ {awayScorers.join(" · ")}</div>
           </>
         )}
       </div>
