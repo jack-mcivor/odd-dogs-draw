@@ -1271,12 +1271,14 @@ function Bracket() {
   const { groupProbs, standings, rounds } = useMemo(() => {
     void state;
     const standings = bestEstimateStandings();
+    const groupProbs = computeAllGroupProbs();
     return {
-      groupProbs: computeAllGroupProbs(),
+      groupProbs,
       standings,
-      rounds: projectAllRounds(standings, state.scores, state.knockoutSlots),
+      rounds: projectAllRounds(standings, groupProbs, state.scores, state.knockoutSlots),
     };
   }, [state.scores, state.knockoutSlots]);
+
 
   const laterStages = [
     { key: "R16", label: "Round of 16" },
