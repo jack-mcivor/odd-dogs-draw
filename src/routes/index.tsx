@@ -1114,6 +1114,11 @@ function knockoutActualPair(
   return null; // tie — assume penalty shoot-out result not yet known
 }
 
+// Probability that the stronger team wins, given strength scores.
+function matchupWinProb(sa: number, sb: number): number {
+  return 1 / (1 + Math.exp(-(sa - sb) / 80));
+}
+
 function projectMatchOutcome(
   a: ProjectedSlot,
   b: ProjectedSlot,
@@ -1125,13 +1130,13 @@ function projectMatchOutcome(
   const actual = knockoutActualPair(matchId, scores, knockoutSlots);
   if (actual) {
     return {
-      winner: { team: actual.winner, projected: false, viaMatchId: matchId },
-      loser: { team: actual.loser, projected: false, viaMatchId: matchId },
+      winner: { team: actual.winner, projected: false, viaMatchId: matchId, confidence: 1 },
+      loser: { team: actual.loser, projected: false, viaMatchId: matchId, confidence: 1 },
     };
   }
-  type HasTeam = { team: string; group?: GroupLetter };
-  const aHas: HasTeam | null = a.team === null ? null : { team: a.team, group: a.group };
-  const bHas: HasTeam | null = b.team === null ? null : { team: b.team, group: b.group };
+  type HasTeam = { team: string; group?: GroupLetter; confidence: number };
+  const aHas: HasTeam | null = a.team === null ? null : { team: a.team, group: a.group, confidence: a.confidence ?? 1 };
+  const bHas: HasTeam | null = b.team === null ? null : { team: b.team, group: b.group, confidence: b.confidence ?? 1 };
   if (!aHas && !bHas) {
     return {
       winner: { team: null, description: `Winner ${matchId}` },
@@ -1140,24 +1145,29 @@ function projectMatchOutcome(
   }
   if (!aHas && bHas) {
     return {
-      winner: { team: bHas.team, projected: true, group: bHas.group, viaMatchId: matchId },
+      winner: { team: bHas.team, projected: true, group: bHas.group, viaMatchId: matchId, confidence: bHas.confidence * 0.5 },
       loser: { team: null, description: `Loser ${matchId}` },
     };
   }
   if (!bHas && aHas) {
     return {
-      winner: { team: aHas.team, projected: true, group: aHas.group, viaMatchId: matchId },
+      winner: { team: aHas.team, projected: true, group: aHas.group, viaMatchId: matchId, confidence: aHas.confidence * 0.5 },
       loser: { team: null, description: `Loser ${matchId}` },
     };
   }
   const sa = teamStrengthScore(aHas!.team, standings);
   const sb = teamStrengthScore(bHas!.team, standings);
-  const [w, l] = sa >= sb ? [aHas!, bHas!] : [bHas!, aHas!];
+  const aWinProb = matchupWinProb(sa, sb);
+  const pBoth = aHas!.confidence * bHas!.confidence;
+  const winnerIsA = sa >= sb;
+  const w = winnerIsA ? aHas! : bHas!;
+  const l = winnerIsA ? bHas! : aHas!;
+  const wMatch = winnerIsA ? aWinProb : 1 - aWinProb;
+  const lMatch = 1 - wMatch;
   return {
-    winner: { team: w.team, projected: true, group: w.group, viaMatchId: matchId },
-    loser: { team: l.team, projected: true, group: l.group, viaMatchId: matchId },
+    winner: { team: w.team, projected: true, group: w.group, viaMatchId: matchId, confidence: pBoth * wMatch },
+    loser: { team: l.team, projected: true, group: l.group, viaMatchId: matchId, confidence: pBoth * lMatch },
   };
-
 }
 
 type RoundProjection = {
@@ -1171,10 +1181,11 @@ type RoundProjection = {
 
 function projectAllRounds(
   standings: Record<GroupLetter, GroupStanding>,
+  probs: Record<string, { q: number; t: number; e: number }>,
   scores: Record<string, { home: number; away: number; played: boolean }>,
   knockoutSlots: Record<string, { home?: string; away?: string }>,
 ): RoundProjection {
-  const R32 = projectR32Slots();
+  const R32 = projectR32Slots(probs);
 
   const r32Winners: ProjectedSlot[] = R32.map((pair, i) =>
     projectMatchOutcome(pair[0], pair[1], `R32-${i + 1}`, standings, scores, knockoutSlots).winner,
@@ -1223,6 +1234,7 @@ function projectAllRounds(
     Final: [[sfWinners[0], sfWinners[1]]],
   };
 }
+
 
 // ---------- UI ----------
 
