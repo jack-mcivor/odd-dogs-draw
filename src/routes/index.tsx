@@ -1034,7 +1034,7 @@ function projectR32Slots(): ProjectedSlot[][] {
         if (a.team) {
           rowOut.push({ team: a.team, projected: a.projected, group: a.group, role: "3rd-place" });
         } else {
-          rowOut.push(a);
+          rowOut.push({ team: null, description: a.description });
         }
       }
     });
