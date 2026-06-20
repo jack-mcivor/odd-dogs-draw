@@ -10,6 +10,7 @@ import {
   computeAllTotals, displayScore, effectiveTeams, getState, isMatchLive,
   isTeamEliminated, loadFromStorage, nextUpcoming, recentResults, useAppState,
 } from "@/lib/wc-store";
+import { knockoutAdvanceProbability, priceMatch } from "@/lib/wc-probability";
 import { MatchDetailProvider, useMatchDetail } from "@/components/MatchDetailModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -869,16 +870,26 @@ function computeGroupProbs(letter: GroupLetter): GroupProbs {
   const teams = GROUPS[letter];
   const matches = GROUP_MATCHES.filter((m) => m.group === letter);
   type K = { m: Match; hs: number; as: number };
+  type Unknown = { m: Match; homeWin: number; draw: number; awayWin: number };
   const known: K[] = [];
-  const unknown: Match[] = [];
+  const unknown: Unknown[] = [];
   for (const m of matches) {
     const s = getState().scores[m.id];
     if (s?.played) known.push({ m, hs: s.home, as: s.away });
-    else unknown.push(m);
+    else {
+      const price = priceMatch(m.home, m.away);
+      unknown.push({
+        m,
+        homeWin: price?.homeWin ?? 1 / 3,
+        draw: price?.draw ?? 1 / 3,
+        awayWin: price?.awayWin ?? 1 / 3,
+      });
+    }
   }
   const out: GroupProbs = {};
   teams.forEach((t) => out[t] = { q: 0, t: 0, e: 0 });
   const N = Math.pow(3, unknown.length);
+  let totalWeight = 0;
   for (let idx = 0; idx < N; idx++) {
     const stats: Record<string, TStat> = {};
     teams.forEach((t) => stats[t] = { p: 0, gf: 0, ga: 0, pts: 0 });
@@ -894,24 +905,33 @@ function computeGroupProbs(letter: GroupLetter): GroupProbs {
     };
     for (const k of known) apply(k.m.home, k.m.away, k.hs, k.as);
     let id = idx;
-    for (const m of unknown) {
+    let scenarioWeight = 1;
+    for (const { m, homeWin, draw, awayWin } of unknown) {
       const o = id % 3; id = Math.floor(id / 3);
-      if (o === 0) apply(m.home, m.away, 1, 0);
-      else if (o === 1) apply(m.home, m.away, 1, 1);
-      else apply(m.home, m.away, 0, 1);
+      if (o === 0) {
+        scenarioWeight *= homeWin;
+        apply(m.home, m.away, 1, 0);
+      } else if (o === 1) {
+        scenarioWeight *= draw;
+        apply(m.home, m.away, 1, 1);
+      } else {
+        scenarioWeight *= awayWin;
+        apply(m.home, m.away, 0, 1);
+      }
     }
     const buckets = rankBuckets(teams, stats, results);
     const q = bucketCredit(buckets, [1, 2]);
     const tt = bucketCredit(buckets, [3]);
     const e = bucketCredit(buckets, [4]);
+    totalWeight += scenarioWeight;
     for (const t of teams) {
-      out[t].q += q[t] ?? 0;
-      out[t].t += tt[t] ?? 0;
-      out[t].e += e[t] ?? 0;
+      out[t].q += (q[t] ?? 0) * scenarioWeight;
+      out[t].t += (tt[t] ?? 0) * scenarioWeight;
+      out[t].e += (e[t] ?? 0) * scenarioWeight;
     }
   }
   for (const t of teams) {
-    out[t].q /= N; out[t].t /= N; out[t].e /= N;
+    out[t].q /= totalWeight || 1; out[t].t /= totalWeight || 1; out[t].e /= totalWeight || 1;
   }
   return out;
 }
@@ -1084,24 +1104,6 @@ function projectR32Slots(
 }
 
 // ---------- Later-round projection ----------
-// Heuristic team strength: pot tier dominates, refined by current group-stage form.
-// Recomputes whenever group standings change, so the projected later-round bracket
-// updates in lock-step with live scores.
-function teamStrengthScore(
-  team: string,
-  standings: Record<GroupLetter, GroupStanding>,
-): number {
-  const t = TEAMS[team];
-  const potScore = t ? (5 - t.pot) * 100 : 0; // P1=400 … P4=100
-  for (const g of GROUP_LETTERS) {
-    const st = standings[g].stats[team];
-    if (st) {
-      return potScore + st.pts * 12 + (st.gf - st.ga) * 2 + st.gf;
-    }
-  }
-  return potScore;
-}
-
 // If a knockout match has been played AND its slots are filled, return the
 // actual winner / loser so confirmed teams cascade through later rounds.
 function knockoutActualPair(
@@ -1118,16 +1120,10 @@ function knockoutActualPair(
   return null; // tie — assume penalty shoot-out result not yet known
 }
 
-// Probability that the stronger team wins, given strength scores.
-function matchupWinProb(sa: number, sb: number): number {
-  return 1 / (1 + Math.exp(-(sa - sb) / 80));
-}
-
 function projectMatchOutcome(
   a: ProjectedSlot,
   b: ProjectedSlot,
   matchId: string,
-  standings: Record<GroupLetter, GroupStanding>,
   scores: Record<string, { home: number; away: number; played: boolean }>,
   knockoutSlots: Record<string, { home?: string; away?: string }>,
 ): { winner: ProjectedSlot; loser: ProjectedSlot } {
@@ -1159,14 +1155,12 @@ function projectMatchOutcome(
       loser: { team: null, description: `Loser ${matchId}` },
     };
   }
-  const sa = teamStrengthScore(aHas!.team, standings);
-  const sb = teamStrengthScore(bHas!.team, standings);
-  const aWinProb = matchupWinProb(sa, sb);
+  const aAdvanceProb = knockoutAdvanceProbability(aHas!.team, bHas!.team) ?? 0.5;
   const pBoth = aHas!.confidence * bHas!.confidence;
-  const winnerIsA = sa >= sb;
+  const winnerIsA = aAdvanceProb >= 0.5;
   const w = winnerIsA ? aHas! : bHas!;
   const l = winnerIsA ? bHas! : aHas!;
-  const wMatch = winnerIsA ? aWinProb : 1 - aWinProb;
+  const wMatch = winnerIsA ? aAdvanceProb : 1 - aAdvanceProb;
   const lMatch = 1 - wMatch;
   return {
     winner: { team: w.team, projected: true, group: w.group, viaMatchId: matchId, confidence: pBoth * wMatch },
@@ -1184,7 +1178,6 @@ type RoundProjection = {
 };
 
 function projectAllRounds(
-  standings: Record<GroupLetter, GroupStanding>,
   probs: Record<string, { q: number; t: number; e: number }>,
   scores: Record<string, { home: number; away: number; played: boolean }>,
   knockoutSlots: Record<string, { home?: string; away?: string }>,
@@ -1192,7 +1185,7 @@ function projectAllRounds(
   const R32 = projectR32Slots(probs);
 
   const r32Winners: ProjectedSlot[] = R32.map((pair, i) =>
-    projectMatchOutcome(pair[0], pair[1], `R32-${i + 1}`, standings, scores, knockoutSlots).winner,
+    projectMatchOutcome(pair[0], pair[1], `R32-${i + 1}`, scores, knockoutSlots).winner,
   );
 
   const R16: ProjectedSlot[][] = [];
@@ -1202,7 +1195,7 @@ function projectAllRounds(
     const b = r32Winners[i * 2 + 1];
     R16.push([a, b]);
     r16Winners.push(
-      projectMatchOutcome(a, b, `R16-${i + 1}`, standings, scores, knockoutSlots).winner,
+      projectMatchOutcome(a, b, `R16-${i + 1}`, scores, knockoutSlots).winner,
     );
   }
 
@@ -1213,7 +1206,7 @@ function projectAllRounds(
     const b = r16Winners[i * 2 + 1];
     QF.push([a, b]);
     qfWinners.push(
-      projectMatchOutcome(a, b, `QF-${i + 1}`, standings, scores, knockoutSlots).winner,
+      projectMatchOutcome(a, b, `QF-${i + 1}`, scores, knockoutSlots).winner,
     );
   }
 
@@ -1224,7 +1217,7 @@ function projectAllRounds(
     const a = qfWinners[i * 2];
     const b = qfWinners[i * 2 + 1];
     SF.push([a, b]);
-    const out = projectMatchOutcome(a, b, `SF-${i + 1}`, standings, scores, knockoutSlots);
+    const out = projectMatchOutcome(a, b, `SF-${i + 1}`, scores, knockoutSlots);
     sfWinners.push(out.winner);
     sfLosers.push(out.loser);
   }
@@ -1279,7 +1272,7 @@ function Bracket() {
     return {
       groupProbs,
       standings,
-      rounds: projectAllRounds(standings, groupProbs, state.scores, state.knockoutSlots),
+      rounds: projectAllRounds(groupProbs, state.scores, state.knockoutSlots),
     };
   }, [state.scores, state.knockoutSlots]);
 
@@ -1297,8 +1290,8 @@ function Bracket() {
       <Card className="p-4 bg-card border-border">
         <h2 className="text-lg font-bold mb-1">Group standings (live)</h2>
         <p className="text-[11px] text-muted-foreground mb-2">
-          Exact qualification / elimination probabilities from enumerating every possible result
-          of remaining group matches, using official FIFA 2026 tiebreakers
+          Model-weighted qualification / elimination probabilities from enumerating every possible result
+          class of remaining group matches, using official FIFA 2026 tiebreakers
           (pts → GD → GF → head-to-head pts/GD/GF).
         </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1331,7 +1324,7 @@ function Bracket() {
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-bold">{label} — projected matchups</h3>
               <span className="text-[10px] text-muted-foreground italic">
-                Confidence-based: % combines group progression × matchup win probability. Updates live as scores come in.
+                Confidence-based: % combines group progression × Elo-xG matchup probability. Updates live as scores come in.
               </span>
 
             </div>
@@ -1503,4 +1496,3 @@ function ProjectedSlotRow({ slot }: { slot: ProjectedSlot }) {
   );
 
 }
-

@@ -6,6 +6,7 @@ import {
 import {
   effectiveTeams, getState, isTeamEliminated, loadFromStorage, useAppState,
 } from "@/lib/wc-store";
+import { teamMatchProbabilities } from "@/lib/wc-probability";
 import { fetchAndApply, initApi } from "@/lib/wc-api";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -71,27 +72,6 @@ function LocalTime({ iso }: { iso: string }) {
     </span>
   );
 }
-
-// Pot-based Elo-style ratings used to estimate win probability.
-const POT_RATING: Record<1 | 2 | 3 | 4, number> = { 1: 2000, 2: 1850, 3: 1700, 4: 1550 };
-
-function winProbability(teamA: string, teamB: string): { win: number; draw: number; loss: number } | null {
-  const a = TEAMS[teamA];
-  const b = TEAMS[teamB];
-  if (!a || !b) return null;
-  const ra = POT_RATING[a.pot];
-  const rb = POT_RATING[b.pot];
-  const diff = ra - rb;
-  // Elo expected score for A
-  const expA = 1 / (1 + Math.pow(10, -diff / 400));
-  // Draw probability: peaks ~28% when teams are even, decays with rating gap.
-  const draw = 0.28 * Math.exp(-Math.abs(diff) / 350);
-  const rest = 1 - draw;
-  const win = rest * expA;
-  const loss = rest * (1 - expA);
-  return { win, draw, loss };
-}
-
 
 function TeamPage() {
   useAppState();
@@ -284,14 +264,14 @@ function TeamFixture({ match, team }: { match: Match; team: string }) {
         </div>
       </div>
       {!played && opponent && (() => {
-        const wp = winProbability(team, opponent);
+        const wp = teamMatchProbabilities(team, e.home, e.away);
         if (!wp) return null;
         const fmt = (n: number) => `${Math.round(n * 100)}%`;
         return (
           <div className="mt-2 pt-2 border-t border-border/50">
             <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
               <span>Win probability</span>
-              <span className="normal-case tracking-normal">Pot-based model</span>
+              <span className="normal-case tracking-normal">Elo-xG model</span>
             </div>
             <div className="flex h-2 rounded-full overflow-hidden bg-secondary">
               <div className="bg-emerald-500" style={{ width: `${wp.win * 100}%` }} />
@@ -309,4 +289,3 @@ function TeamFixture({ match, team }: { match: Match; team: string }) {
     </div>
   );
 }
-
