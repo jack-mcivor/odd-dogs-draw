@@ -1037,14 +1037,37 @@ function projectR32Slots(
     pair.forEach((slot, col) => {
       if (slot.kind === "w") {
         const s = standings[slot.g];
-        rowOut.push({ team: s.order[0], projected: !s.allPlayed, group: slot.g, role: "winner" });
+        const team = s.order[0];
+        const p = probs[team] ?? { q: 0, t: 0, e: 0 };
+        rowOut.push({
+          team,
+          projected: !s.allPlayed,
+          group: slot.g,
+          role: "winner",
+          confidence: s.allPlayed ? 1 : p.q,
+        });
       } else if (slot.kind === "ru") {
         const s = standings[slot.g];
-        rowOut.push({ team: s.order[1], projected: !s.allPlayed, group: slot.g, role: "runner-up" });
+        const team = s.order[1];
+        const p = probs[team] ?? { q: 0, t: 0, e: 0 };
+        rowOut.push({
+          team,
+          projected: !s.allPlayed,
+          group: slot.g,
+          role: "runner-up",
+          confidence: s.allPlayed ? 1 : p.q,
+        });
       } else {
         const a = b3Assignments.get(row * 10 + col)!;
         if (a.team !== null) {
-          rowOut.push({ team: a.team, projected: a.projected, group: a.group, role: "3rd-place" });
+          const p = probs[a.team] ?? { q: 0, t: 0, e: 0 };
+          rowOut.push({
+            team: a.team,
+            projected: a.projected,
+            group: a.group,
+            role: "3rd-place",
+            confidence: a.projected ? p.t : 1,
+          });
         } else {
           rowOut.push({ team: null, description: a.description });
         }
@@ -1052,6 +1075,7 @@ function projectR32Slots(
     });
     slotRows.push(rowOut);
   });
+
   return slotRows;
 }
 
