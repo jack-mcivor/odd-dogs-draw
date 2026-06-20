@@ -981,10 +981,15 @@ type ProjectedSlot =
       group?: GroupLetter;
       role?: "winner" | "runner-up" | "3rd-place";
       viaMatchId?: string;
+      confidence?: number; // 0..1 — probability this team occupies this slot
     }
-  | { team: null; description: string };
+  | { team: null; description: string; confidence?: number };
 
-function projectR32Slots(): ProjectedSlot[][] {
+
+function projectR32Slots(
+  probs: Record<string, { q: number; t: number; e: number }>,
+): ProjectedSlot[][] {
+
   const standings = bestEstimateStandings();
   const allGroupsComplete = GROUP_LETTERS.every((g) => standings[g].allPlayed);
   const thirds = rankThirds(standings); // already sorted
@@ -1032,14 +1037,37 @@ function projectR32Slots(): ProjectedSlot[][] {
     pair.forEach((slot, col) => {
       if (slot.kind === "w") {
         const s = standings[slot.g];
-        rowOut.push({ team: s.order[0], projected: !s.allPlayed, group: slot.g, role: "winner" });
+        const team = s.order[0];
+        const p = probs[team] ?? { q: 0, t: 0, e: 0 };
+        rowOut.push({
+          team,
+          projected: !s.allPlayed,
+          group: slot.g,
+          role: "winner",
+          confidence: s.allPlayed ? 1 : p.q,
+        });
       } else if (slot.kind === "ru") {
         const s = standings[slot.g];
-        rowOut.push({ team: s.order[1], projected: !s.allPlayed, group: slot.g, role: "runner-up" });
+        const team = s.order[1];
+        const p = probs[team] ?? { q: 0, t: 0, e: 0 };
+        rowOut.push({
+          team,
+          projected: !s.allPlayed,
+          group: slot.g,
+          role: "runner-up",
+          confidence: s.allPlayed ? 1 : p.q,
+        });
       } else {
         const a = b3Assignments.get(row * 10 + col)!;
         if (a.team !== null) {
-          rowOut.push({ team: a.team, projected: a.projected, group: a.group, role: "3rd-place" });
+          const p = probs[a.team] ?? { q: 0, t: 0, e: 0 };
+          rowOut.push({
+            team: a.team,
+            projected: a.projected,
+            group: a.group,
+            role: "3rd-place",
+            confidence: a.projected ? p.t : 1,
+          });
         } else {
           rowOut.push({ team: null, description: a.description });
         }
@@ -1047,6 +1075,7 @@ function projectR32Slots(): ProjectedSlot[][] {
     });
     slotRows.push(rowOut);
   });
+
   return slotRows;
 }
 
@@ -1085,6 +1114,11 @@ function knockoutActualPair(
   return null; // tie — assume penalty shoot-out result not yet known
 }
 
+// Probability that the stronger team wins, given strength scores.
+function matchupWinProb(sa: number, sb: number): number {
+  return 1 / (1 + Math.exp(-(sa - sb) / 80));
+}
+
 function projectMatchOutcome(
   a: ProjectedSlot,
   b: ProjectedSlot,
@@ -1096,13 +1130,13 @@ function projectMatchOutcome(
   const actual = knockoutActualPair(matchId, scores, knockoutSlots);
   if (actual) {
     return {
-      winner: { team: actual.winner, projected: false, viaMatchId: matchId },
-      loser: { team: actual.loser, projected: false, viaMatchId: matchId },
+      winner: { team: actual.winner, projected: false, viaMatchId: matchId, confidence: 1 },
+      loser: { team: actual.loser, projected: false, viaMatchId: matchId, confidence: 1 },
     };
   }
-  type HasTeam = { team: string; group?: GroupLetter };
-  const aHas: HasTeam | null = a.team === null ? null : { team: a.team, group: a.group };
-  const bHas: HasTeam | null = b.team === null ? null : { team: b.team, group: b.group };
+  type HasTeam = { team: string; group?: GroupLetter; confidence: number };
+  const aHas: HasTeam | null = a.team === null ? null : { team: a.team, group: a.group, confidence: a.confidence ?? 1 };
+  const bHas: HasTeam | null = b.team === null ? null : { team: b.team, group: b.group, confidence: b.confidence ?? 1 };
   if (!aHas && !bHas) {
     return {
       winner: { team: null, description: `Winner ${matchId}` },
@@ -1111,24 +1145,29 @@ function projectMatchOutcome(
   }
   if (!aHas && bHas) {
     return {
-      winner: { team: bHas.team, projected: true, group: bHas.group, viaMatchId: matchId },
+      winner: { team: bHas.team, projected: true, group: bHas.group, viaMatchId: matchId, confidence: bHas.confidence * 0.5 },
       loser: { team: null, description: `Loser ${matchId}` },
     };
   }
   if (!bHas && aHas) {
     return {
-      winner: { team: aHas.team, projected: true, group: aHas.group, viaMatchId: matchId },
+      winner: { team: aHas.team, projected: true, group: aHas.group, viaMatchId: matchId, confidence: aHas.confidence * 0.5 },
       loser: { team: null, description: `Loser ${matchId}` },
     };
   }
   const sa = teamStrengthScore(aHas!.team, standings);
   const sb = teamStrengthScore(bHas!.team, standings);
-  const [w, l] = sa >= sb ? [aHas!, bHas!] : [bHas!, aHas!];
+  const aWinProb = matchupWinProb(sa, sb);
+  const pBoth = aHas!.confidence * bHas!.confidence;
+  const winnerIsA = sa >= sb;
+  const w = winnerIsA ? aHas! : bHas!;
+  const l = winnerIsA ? bHas! : aHas!;
+  const wMatch = winnerIsA ? aWinProb : 1 - aWinProb;
+  const lMatch = 1 - wMatch;
   return {
-    winner: { team: w.team, projected: true, group: w.group, viaMatchId: matchId },
-    loser: { team: l.team, projected: true, group: l.group, viaMatchId: matchId },
+    winner: { team: w.team, projected: true, group: w.group, viaMatchId: matchId, confidence: pBoth * wMatch },
+    loser: { team: l.team, projected: true, group: l.group, viaMatchId: matchId, confidence: pBoth * lMatch },
   };
-
 }
 
 type RoundProjection = {
@@ -1142,10 +1181,11 @@ type RoundProjection = {
 
 function projectAllRounds(
   standings: Record<GroupLetter, GroupStanding>,
+  probs: Record<string, { q: number; t: number; e: number }>,
   scores: Record<string, { home: number; away: number; played: boolean }>,
   knockoutSlots: Record<string, { home?: string; away?: string }>,
 ): RoundProjection {
-  const R32 = projectR32Slots();
+  const R32 = projectR32Slots(probs);
 
   const r32Winners: ProjectedSlot[] = R32.map((pair, i) =>
     projectMatchOutcome(pair[0], pair[1], `R32-${i + 1}`, standings, scores, knockoutSlots).winner,
@@ -1195,6 +1235,7 @@ function projectAllRounds(
   };
 }
 
+
 // ---------- UI ----------
 
 function PlayerTag({ team }: { team: string }) {
@@ -1230,12 +1271,14 @@ function Bracket() {
   const { groupProbs, standings, rounds } = useMemo(() => {
     void state;
     const standings = bestEstimateStandings();
+    const groupProbs = computeAllGroupProbs();
     return {
-      groupProbs: computeAllGroupProbs(),
+      groupProbs,
       standings,
-      rounds: projectAllRounds(standings, state.scores, state.knockoutSlots),
+      rounds: projectAllRounds(standings, groupProbs, state.scores, state.knockoutSlots),
     };
   }, [state.scores, state.knockoutSlots]);
+
 
   const laterStages = [
     { key: "R16", label: "Round of 16" },
@@ -1265,8 +1308,9 @@ function Bracket() {
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-bold">Round of 32 — projected bracket</h3>
           <span className="text-[10px] text-muted-foreground italic">
-            Projected slots shown in italics with a dashed border. Confirmed once their group(s) finish.
+            Confidence-based: % next to each team = probability they fill that slot. Confirmed when their group(s) finish.
           </span>
+
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {KNOCKOUT_MATCHES.filter((m) => m.stage === "R32").map((m, i) => (
@@ -1283,8 +1327,9 @@ function Bracket() {
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-bold">{label} — projected matchups</h3>
               <span className="text-[10px] text-muted-foreground italic">
-                Projected from team strength + live group form. Updates as scores come in.
+                Confidence-based: % combines group progression × matchup win probability. Updates live as scores come in.
               </span>
+
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {matches.map((m, i) => (
@@ -1379,6 +1424,13 @@ function ProjectedKnockoutCard({
   label: string;
 }) {
   const anyProjected = slots.some((s) => s.team === null || s.projected);
+  // Overall matchup confidence = product of both slot confidences
+  const matchConf = slots.reduce<number | null>((acc, s) => {
+    const c = s.confidence;
+    if (c === undefined) return acc;
+    return acc === null ? c : acc * c;
+  }, null);
+  const showMatchConf = anyProjected && matchConf !== null && matchConf < 0.9999;
   return (
     <div
       className={`rounded-md p-2 space-y-1 ${anyProjected ? "border border-dashed border-muted-foreground/40 bg-secondary/20" : "bg-secondary/40 border border-transparent"}`}
@@ -1386,8 +1438,11 @@ function ProjectedKnockoutCard({
       <div className="text-[10px] text-muted-foreground flex items-center justify-between gap-1">
         <span>{label} · <LocalTime iso={match.date} /></span>
         {anyProjected && (
-          <span className="rounded bg-amber-400/15 text-amber-400 px-1 py-0 text-[9px] font-bold tracking-wide">
-            PROJECTED
+          <span
+            className="rounded bg-amber-400/15 text-amber-400 px-1 py-0 text-[9px] font-bold tracking-wide"
+            title="Confidence-based projection"
+          >
+            {showMatchConf ? `~${formatConfidence(matchConf!)} CONF` : "PROJECTED"}
           </span>
         )}
       </div>
@@ -1397,6 +1452,14 @@ function ProjectedKnockoutCard({
       </div>
     </div>
   );
+}
+
+function formatConfidence(c: number): string {
+  const pct = c * 100;
+  if (pct >= 99.5) return "99%";
+  if (pct < 1) return `${pct.toFixed(1)}%`;
+  if (pct < 10) return `${pct.toFixed(1)}%`;
+  return `${pct.toFixed(0)}%`;
 }
 
 function ProjectedSlotRow({ slot }: { slot: ProjectedSlot }) {
@@ -1415,6 +1478,8 @@ function ProjectedSlotRow({ slot }: { slot: ProjectedSlot }) {
     : slot.role === "runner-up" ? `2${slot.group}`
     : slot.role === "3rd-place" ? `3${slot.group}`
     : "";
+  const conf = slot.confidence;
+  const showConf = slot.projected && conf !== undefined;
   return (
     <div className="flex items-center gap-1.5">
       <span className="w-1.5 h-5 rounded" style={{ background: color }} />
@@ -1422,7 +1487,16 @@ function ProjectedSlotRow({ slot }: { slot: ProjectedSlot }) {
         <span className="text-[9px] text-muted-foreground w-6 tabular-nums">{roleLabel}</span>
       )}
       <BracketTeam team={slot.team} projected={slot.projected} />
+      {showConf && (
+        <span
+          className="ml-auto text-[9px] tabular-nums text-amber-400/90 font-semibold"
+          title={`Confidence this team fills this slot: ${(conf! * 100).toFixed(1)}%`}
+        >
+          {formatConfidence(conf!)}
+        </span>
+      )}
     </div>
   );
+
 }
 
