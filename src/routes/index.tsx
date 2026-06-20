@@ -128,8 +128,12 @@ function App() {
   const [tab, setTab] = useState("dashboard");
   const [refreshing, setRefreshing] = useState(false);
   const [focusPlayer, setFocusPlayer] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { loadFromStorage(); initApi(); initLive(); }, []);
+  useEffect(() => { loadFromStorage(); initApi(); initLive(); setMounted(true); }, []);
+
+  if (!mounted) return null;
+
 
   const handleRefresh = async () => {
     if (refreshing) return;
