@@ -1163,16 +1163,15 @@ function GroupTable({
           {standing.order.map((t) => {
             const p = probs[t] ?? { q: 0, t: 0, e: 0 };
             const st = standing.stats[t];
-            // status badge
+            // status badge (progression % = qualify + best 3rd)
+            const prog = p.q + p.t;
             let badge: ReactNode;
-            if (p.e >= 0.9999) {
-              badge = <span className="px-1 py-0.5 rounded bg-destructive/20 text-destructive font-bold">OUT</span>;
-            } else if (p.e <= 0.0001 && p.q >= 0.9999) {
+            if (prog >= 0.9999) {
               badge = <span className="px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">THROUGH</span>;
-            } else if (p.e <= 0.0001) {
-              badge = <span className="px-1 py-0.5 rounded text-emerald-400">0%</span>;
+            } else if (prog <= 0.0001) {
+              badge = <span className="px-1 py-0.5 rounded bg-destructive/20 text-destructive font-bold">OUT</span>;
             } else {
-              badge = <span className="px-1 py-0.5 rounded text-amber-400">{(p.e * 100).toFixed(p.e < 0.1 ? 1 : 0)}%</span>;
+              badge = <span className="px-1 py-0.5 rounded text-amber-400">{(prog * 100).toFixed(prog < 0.1 ? 1 : 0)}%</span>;
             }
             return (
               <tr key={t}>
