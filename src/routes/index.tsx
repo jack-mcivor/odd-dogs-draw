@@ -1164,7 +1164,7 @@ function GroupTable({
             const p = probs[t] ?? { q: 0, t: 0, e: 0 };
             const st = standing.stats[t];
             // status badge
-            let badge: JSX.Element;
+            let badge: React.ReactNode;
             if (p.e >= 0.9999) {
               badge = <span className="px-1 py-0.5 rounded bg-destructive/20 text-destructive font-bold">OUT</span>;
             } else if (p.e <= 0.0001 && p.q >= 0.9999) {
