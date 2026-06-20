@@ -763,13 +763,18 @@ const PALETTE = ["#FFD700","#14b8a6","#3b82f6","#ec4899","#f59e0b","#a78bfa","#3
 PLAYERS.forEach((p, i) => { PLAYER_COLOR[p.name] = PALETTE[i]; });
 
 function Bracket() {
+  const state = useAppState();
   const groups = ["R32", "R16", "QF", "SF", "3rd", "Final"] as const;
+  const elimProbs = useMemo(() => computeElimProbs(), [state.scores]);
   return (
     <div className="space-y-6">
       <Card className="p-4 bg-card border-border">
-        <h2 className="text-lg font-bold mb-2">Group standings (live)</h2>
+        <h2 className="text-lg font-bold mb-1">Group standings (live)</h2>
+        <p className="text-[11px] text-muted-foreground mb-2">
+          % = simulated chance of group-stage elimination (Monte Carlo, 1,500 runs from current scores; top 2 + 8 best 3rd-placed advance).
+        </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {GROUP_LETTERS.map((g) => <GroupTable key={g} letter={g} />)}
+          {GROUP_LETTERS.map((g) => <GroupTable key={g} letter={g} elimProbs={elimProbs} />)}
         </div>
       </Card>
 
@@ -803,7 +808,58 @@ function stageLabel(s: string) {
   return ({ R32: "Round of 32", R16: "Round of 16", QF: "Quarter-finals", SF: "Semi-finals", "3rd": "Third-place play-off", Final: "Final" } as Record<string, string>)[s] ?? s;
 }
 
-function GroupTable({ letter }: { letter: typeof GROUP_LETTERS[number] }) {
+// Poisson sample (mean ~1.3 goals) for simulating goals in unplayed matches.
+function simGoals(): number {
+  const L = Math.exp(-1.3);
+  let k = 0, p = 1;
+  do { k++; p *= Math.random(); } while (p > L);
+  return k - 1;
+}
+
+// Monte Carlo elimination probability for the group stage.
+// WC26: top 2 per group + 8 best 3rd-placed teams advance to R32 (16 of 48 out).
+// Played/live scores are fixed; unplayed matches are simulated.
+function computeElimProbs(N = 1500): Record<string, number> {
+  const snap = GROUP_MATCHES.map((m) => ({ m, s: displayScore(m.id) }));
+  const counts: Record<string, number> = {};
+  for (const g of GROUP_LETTERS) for (const t of GROUPS[g]) counts[t] = 0;
+
+  for (let i = 0; i < N; i++) {
+    const stats: Record<string, { p: number; gf: number; ga: number; pts: number }> = {};
+    for (const g of GROUP_LETTERS) for (const t of GROUPS[g]) stats[t] = { p: 0, gf: 0, ga: 0, pts: 0 };
+
+    for (const { m, s } of snap) {
+      const h = s ? s.home : simGoals();
+      const a = s ? s.away : simGoals();
+      const hs = stats[m.home], as_ = stats[m.away];
+      hs.p++; as_.p++;
+      hs.gf += h; hs.ga += a;
+      as_.gf += a; as_.ga += h;
+      if (h > a) hs.pts += 3;
+      else if (h < a) as_.pts += 3;
+      else { hs.pts++; as_.pts++; }
+    }
+
+    const thirds: Array<{ team: string; pts: number; gd: number; gf: number; r: number }> = [];
+    for (const g of GROUP_LETTERS) {
+      const teams = [...GROUPS[g]].sort((a, b) => {
+        const sa = stats[a], sb = stats[b];
+        return sb.pts - sa.pts || (sb.gf - sb.ga) - (sa.gf - sa.ga) || sb.gf - sa.gf || Math.random() - 0.5;
+      });
+      counts[teams[3]]++; // 4th: eliminated
+      const t3 = teams[2];
+      thirds.push({ team: t3, pts: stats[t3].pts, gd: stats[t3].gf - stats[t3].ga, gf: stats[t3].gf, r: Math.random() });
+    }
+    thirds.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || a.r - b.r);
+    for (let k = 8; k < thirds.length; k++) counts[thirds[k].team]++;
+  }
+
+  const probs: Record<string, number> = {};
+  for (const t in counts) probs[t] = counts[t] / N;
+  return probs;
+}
+
+function GroupTable({ letter, elimProbs }: { letter: typeof GROUP_LETTERS[number]; elimProbs: Record<string, number> }) {
   useAppState();
   const teams = GROUPS[letter];
   const stats: Record<string, { p: number; gf: number; ga: number; pts: number }> = {};
@@ -824,14 +880,21 @@ function GroupTable({ letter }: { letter: typeof GROUP_LETTERS[number] }) {
       <div className="text-xs font-black text-primary mb-1">Group {letter}</div>
       <table className="w-full text-[11px]">
         <tbody>
-          {sorted.map((t) => (
-            <tr key={t}>
-              <td className="py-0.5">{TEAMS[t].flag} {t}</td>
-              <td className="text-right tabular-nums text-muted-foreground">{stats[t].p}</td>
-              <td className="text-right tabular-nums text-muted-foreground">{stats[t].gf}:{stats[t].ga}</td>
-              <td className="text-right tabular-nums font-bold w-6">{stats[t].pts}</td>
-            </tr>
-          ))}
+          {sorted.map((t) => {
+            const ep = elimProbs[t] ?? 0;
+            const pct = Math.round(ep * 100);
+            const cls = ep >= 0.99 ? "text-destructive font-bold" : ep >= 0.5 ? "text-amber-400" : ep <= 0.01 ? "text-emerald-400 font-bold" : "text-muted-foreground";
+            const label = ep >= 0.995 ? "OUT" : ep <= 0.005 ? "SAFE" : `${pct}%`;
+            return (
+              <tr key={t}>
+                <td className="py-0.5">{TEAMS[t].flag} {t}</td>
+                <td className="text-right tabular-nums text-muted-foreground">{stats[t].p}</td>
+                <td className="text-right tabular-nums text-muted-foreground">{stats[t].gf}:{stats[t].ga}</td>
+                <td className="text-right tabular-nums font-bold w-6">{stats[t].pts}</td>
+                <td className={`text-right tabular-nums w-10 ${cls}`} title="Simulated chance of group-stage elimination">{label}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
