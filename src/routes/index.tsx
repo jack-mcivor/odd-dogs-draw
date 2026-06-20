@@ -352,9 +352,9 @@ function MiniResult({ match }: { match: Match }) {
   const e = effectiveTeams(match);
   const live = useLiveMatch(match.id);
   const { open } = useMatchDetail();
-  const scorers = [...(live?.homeScorers ?? []), ...(live?.awayScorers ?? [])];
-  const shown = scorers.slice(0, 3);
-  const extra = scorers.length - shown.length;
+  const homeScorers = live?.homeScorers ?? [];
+  const awayScorers = live?.awayScorers ?? [];
+  const hasScorers = homeScorers.length + awayScorers.length > 0;
   return (
     <div
       role="button"
@@ -364,16 +364,22 @@ function MiniResult({ match }: { match: Match }) {
       className="rounded-md bg-secondary/40 px-3 py-2 text-sm cursor-pointer hover:bg-secondary/70 transition"
     >
       <div className="text-[10px] text-muted-foreground mb-0.5"><LocalTime iso={match.date} /></div>
-      <div className="flex items-center justify-between gap-2">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         <TeamChip team={e.home} />
         <span className="font-black text-primary tabular-nums">{ds?.home ?? 0}–{ds?.away ?? 0}</span>
-        <TeamChip team={e.away} />
+        <div className="justify-self-end"><TeamChip team={e.away} /></div>
+        {hasScorers && (
+          <>
+            <div className="text-[10px] text-muted-foreground mt-1 leading-tight">
+              {homeScorers.map((s, i) => <div key={i} className="truncate">⚽ {s}</div>)}
+            </div>
+            <div />
+            <div className="text-[10px] text-muted-foreground mt-1 leading-tight text-right">
+              {awayScorers.map((s, i) => <div key={i} className="truncate">⚽ {s}</div>)}
+            </div>
+          </>
+        )}
       </div>
-      {scorers.length > 0 && (
-        <div className="text-[10px] text-muted-foreground mt-1 truncate">
-          ⚽ {shown.join(", ")}{extra > 0 ? ` +${extra} more` : ""}
-        </div>
-      )}
     </div>
   );
 }
