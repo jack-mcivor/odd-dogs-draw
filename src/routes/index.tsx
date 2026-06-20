@@ -1,20 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { fetchAndApply, initApi, useApiMeta, WILDCARD_ASSIGNMENTS } from "@/lib/wc-api";
 import { initLive, useLiveMatch, useLiveState } from "@/lib/wc-live";
 import {
   ALL_MATCHES, GROUP_MATCHES, GROUPS, GROUP_LETTERS, KNOCKOUT_MATCHES,
-  PLAYERS, POT_LABEL_CLASS, TEAMS, teamGroup, teamOwner, type Match, type Pot,
+  PLAYERS, POT_LABEL_CLASS, TEAMS, teamOwner, type GroupLetter, type Match, type Pot,
 } from "@/lib/wc-data";
 import {
   computeAllTotals, displayScore, effectiveTeams, getState, isMatchLive,
-  isTeamEliminated, loadFromStorage, nextUpcoming, recentResults,
-  setKnockoutSlot, setScore, useAppState,
+  isTeamEliminated, loadFromStorage, nextUpcoming, recentResults, useAppState,
 } from "@/lib/wc-store";
 import { MatchDetailProvider, useMatchDetail } from "@/components/MatchDetailModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -762,28 +760,368 @@ const PLAYER_COLOR: Record<string, string> = {};
 const PALETTE = ["#FFD700","#14b8a6","#3b82f6","#ec4899","#f59e0b","#a78bfa","#34d399","#fb7185","#60a5fa","#fbbf24","#22d3ee","#f472b6"];
 PLAYERS.forEach((p, i) => { PLAYER_COLOR[p.name] = PALETTE[i]; });
 
+// ---------- FIFA 2026 group-stage tiebreakers ----------
+// 1) points 2) GD (all) 3) GF (all) 4) H2H pts 5) H2H GD 6) H2H GF
+// 7) fair-play / FIFA ranking / draw of lots → treated as tied (no data)
+type TStat = { p: number; gf: number; ga: number; pts: number };
+type MatchOutcome = { home: string; away: string; hs: number; as: number };
+
+function rankBuckets(teams: string[], stats: Record<string, TStat>, results: MatchOutcome[]): string[][] {
+  if (teams.length <= 1) return teams.length === 1 ? [[teams[0]]] : [];
+  const cmpBase = (a: string, b: string) =>
+    stats[b].pts - stats[a].pts ||
+    (stats[b].gf - stats[b].ga) - (stats[a].gf - stats[a].ga) ||
+    stats[b].gf - stats[a].gf;
+  const sorted = [...teams].sort(cmpBase);
+  const out: string[][] = [];
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i + 1;
+    while (j < sorted.length && cmpBase(sorted[i], sorted[j]) === 0) j++;
+    const tied = sorted.slice(i, j);
+    if (tied.length === 1) out.push(tied);
+    else out.push(...h2hBuckets(tied, results));
+    i = j;
+  }
+  return out;
+}
+
+function h2hBuckets(tied: string[], results: MatchOutcome[]): string[][] {
+  const h: Record<string, TStat> = {};
+  tied.forEach((t) => h[t] = { p: 0, gf: 0, ga: 0, pts: 0 });
+  const set = new Set(tied);
+  for (const r of results) {
+    if (!set.has(r.home) || !set.has(r.away)) continue;
+    h[r.home].p++; h[r.away].p++;
+    h[r.home].gf += r.hs; h[r.home].ga += r.as;
+    h[r.away].gf += r.as; h[r.away].ga += r.hs;
+    if (r.hs > r.as) h[r.home].pts += 3;
+    else if (r.hs < r.as) h[r.away].pts += 3;
+    else { h[r.home].pts++; h[r.away].pts++; }
+  }
+  const cmp = (a: string, b: string) =>
+    h[b].pts - h[a].pts ||
+    (h[b].gf - h[b].ga) - (h[a].gf - h[a].ga) ||
+    h[b].gf - h[a].gf;
+  const sorted = [...tied].sort(cmp);
+  const out: string[][] = [];
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i + 1;
+    while (j < sorted.length && cmp(sorted[i], sorted[j]) === 0) j++;
+    const sub = sorted.slice(i, j);
+    if (sub.length === 1 || sub.length === tied.length) {
+      out.push(sub); // fully isolated, or H2H couldn't separate → step 7 (treat as tied)
+    } else {
+      out.push(...h2hBuckets(sub, results));
+    }
+    i = j;
+  }
+  return out;
+}
+
+function bucketCredit(buckets: string[][], targetPositions: number[]): Record<string, number> {
+  const credit: Record<string, number> = {};
+  let pos = 1;
+  for (const bk of buckets) {
+    const overlap = targetPositions.filter((p) => p >= pos && p < pos + bk.length).length;
+    if (overlap > 0) {
+      const frac = overlap / bk.length;
+      for (const t of bk) credit[t] = (credit[t] ?? 0) + frac;
+    }
+    pos += bk.length;
+  }
+  return credit;
+}
+
+// Build {stats, results} for a group from currently-played/live scores only (best-estimate snapshot).
+function liveGroupStats(letter: GroupLetter): { stats: Record<string, TStat>; results: MatchOutcome[]; allPlayed: boolean } {
+  const teams = GROUPS[letter];
+  const stats: Record<string, TStat> = {};
+  teams.forEach((t) => stats[t] = { p: 0, gf: 0, ga: 0, pts: 0 });
+  const results: MatchOutcome[] = [];
+  const ms = GROUP_MATCHES.filter((m) => m.group === letter);
+  let played = 0;
+  for (const m of ms) {
+    const s = getState().scores[m.id];
+    if (!s?.played) continue;
+    played++;
+    stats[m.home].p++; stats[m.away].p++;
+    stats[m.home].gf += s.home; stats[m.home].ga += s.away;
+    stats[m.away].gf += s.away; stats[m.away].ga += s.home;
+    if (s.home > s.away) stats[m.home].pts += 3;
+    else if (s.home < s.away) stats[m.away].pts += 3;
+    else { stats[m.home].pts++; stats[m.away].pts++; }
+    results.push({ home: m.home, away: m.away, hs: s.home, as: s.away });
+  }
+  return { stats, results, allPlayed: played === ms.length };
+}
+
+// Per-group exhaustive enumeration of remaining unplayed matches (3^n).
+// Each unplayed match → home win 1-0, draw 1-1, away win 0-1.
+type GroupProbs = Record<string, { q: number; t: number; e: number }>;
+function computeGroupProbs(letter: GroupLetter): GroupProbs {
+  const teams = GROUPS[letter];
+  const matches = GROUP_MATCHES.filter((m) => m.group === letter);
+  type K = { m: Match; hs: number; as: number };
+  const known: K[] = [];
+  const unknown: Match[] = [];
+  for (const m of matches) {
+    const s = getState().scores[m.id];
+    if (s?.played) known.push({ m, hs: s.home, as: s.away });
+    else unknown.push(m);
+  }
+  const out: GroupProbs = {};
+  teams.forEach((t) => out[t] = { q: 0, t: 0, e: 0 });
+  const N = Math.pow(3, unknown.length);
+  for (let idx = 0; idx < N; idx++) {
+    const stats: Record<string, TStat> = {};
+    teams.forEach((t) => stats[t] = { p: 0, gf: 0, ga: 0, pts: 0 });
+    const results: MatchOutcome[] = [];
+    const apply = (hm: string, aw: string, hs: number, as: number) => {
+      stats[hm].p++; stats[aw].p++;
+      stats[hm].gf += hs; stats[hm].ga += as;
+      stats[aw].gf += as; stats[aw].ga += hs;
+      if (hs > as) stats[hm].pts += 3;
+      else if (hs < as) stats[aw].pts += 3;
+      else { stats[hm].pts++; stats[aw].pts++; }
+      results.push({ home: hm, away: aw, hs, as });
+    };
+    for (const k of known) apply(k.m.home, k.m.away, k.hs, k.as);
+    let id = idx;
+    for (const m of unknown) {
+      const o = id % 3; id = Math.floor(id / 3);
+      if (o === 0) apply(m.home, m.away, 1, 0);
+      else if (o === 1) apply(m.home, m.away, 1, 1);
+      else apply(m.home, m.away, 0, 1);
+    }
+    const buckets = rankBuckets(teams, stats, results);
+    const q = bucketCredit(buckets, [1, 2]);
+    const tt = bucketCredit(buckets, [3]);
+    const e = bucketCredit(buckets, [4]);
+    for (const t of teams) {
+      out[t].q += q[t] ?? 0;
+      out[t].t += tt[t] ?? 0;
+      out[t].e += e[t] ?? 0;
+    }
+  }
+  for (const t of teams) {
+    out[t].q /= N; out[t].t /= N; out[t].e /= N;
+  }
+  return out;
+}
+
+function computeAllGroupProbs(): Record<string, { q: number; t: number; e: number }> {
+  const all: Record<string, { q: number; t: number; e: number }> = {};
+  for (const g of GROUP_LETTERS) Object.assign(all, computeGroupProbs(g));
+  return all;
+}
+
+// ---------- Best estimate standings (live snapshot, FIFA tiebreakers) ----------
+type GroupStanding = {
+  letter: GroupLetter;
+  order: string[];           // flat order (within tied bucket: input order)
+  buckets: string[][];
+  stats: Record<string, TStat>;
+  allPlayed: boolean;
+};
+
+function bestEstimateStandings(): Record<GroupLetter, GroupStanding> {
+  const out = {} as Record<GroupLetter, GroupStanding>;
+  for (const g of GROUP_LETTERS) {
+    const { stats, results, allPlayed } = liveGroupStats(g);
+    const buckets = rankBuckets(GROUPS[g], stats, results);
+    out[g] = { letter: g, order: buckets.flat(), buckets, stats, allPlayed };
+  }
+  return out;
+}
+
+// Rank third-place teams across groups: pts, GD, GF (fair-play/ranking treated as tied).
+function rankThirds(standings: Record<GroupLetter, GroupStanding>): { team: string; group: GroupLetter; complete: boolean }[] {
+  const arr = GROUP_LETTERS.map((g) => {
+    const s = standings[g];
+    const t = s.order[2];
+    const st = s.stats[t];
+    return { team: t, group: g, complete: s.allPlayed, pts: st.pts, gd: st.gf - st.ga, gf: st.gf };
+  });
+  arr.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+  return arr.map(({ team, group, complete }) => ({ team, group, complete }));
+}
+
+// ---------- FIFA confirmed R32 bracket structure (Matches 73–88) ----------
+type R32Slot =
+  | { kind: "w"; g: GroupLetter }
+  | { kind: "ru"; g: GroupLetter }
+  | { kind: "b3"; cluster: GroupLetter[] };
+
+const R32_STRUCTURE: Array<[R32Slot, R32Slot]> = [
+  [{ kind: "ru", g: "A" }, { kind: "ru", g: "B" }],                                   // 73
+  [{ kind: "w",  g: "E" }, { kind: "b3", cluster: ["A","B","C","D","F"] }],          // 74
+  [{ kind: "w",  g: "F" }, { kind: "ru", g: "C" }],                                   // 75
+  [{ kind: "w",  g: "C" }, { kind: "ru", g: "F" }],                                   // 76
+  [{ kind: "w",  g: "I" }, { kind: "b3", cluster: ["C","D","F","G","H"] }],          // 77
+  [{ kind: "ru", g: "E" }, { kind: "ru", g: "I" }],                                   // 78
+  [{ kind: "w",  g: "A" }, { kind: "b3", cluster: ["C","E","F","H","I"] }],          // 79
+  [{ kind: "w",  g: "L" }, { kind: "b3", cluster: ["E","H","I","J","K"] }],          // 80
+  [{ kind: "w",  g: "D" }, { kind: "b3", cluster: ["B","E","F","I","J"] }],          // 81
+  [{ kind: "w",  g: "G" }, { kind: "b3", cluster: ["A","E","H","I","J"] }],          // 82
+  [{ kind: "ru", g: "K" }, { kind: "ru", g: "L" }],                                   // 83
+  [{ kind: "w",  g: "H" }, { kind: "ru", g: "J" }],                                   // 84
+  [{ kind: "w",  g: "B" }, { kind: "b3", cluster: ["E","F","G","I","J"] }],          // 85
+  [{ kind: "w",  g: "J" }, { kind: "ru", g: "H" }],                                   // 86
+  [{ kind: "w",  g: "K" }, { kind: "b3", cluster: ["D","E","I","J","L"] }],          // 87
+  [{ kind: "ru", g: "D" }, { kind: "ru", g: "G" }],                                   // 88
+];
+
+type ProjectedSlot =
+  | { team: string; projected: boolean; group: GroupLetter; role: "winner" | "runner-up" | "3rd-place" }
+  | { team: null; description: string };
+
+function projectR32Slots(): ProjectedSlot[][] {
+  const standings = bestEstimateStandings();
+  const allGroupsComplete = GROUP_LETTERS.every((g) => standings[g].allPlayed);
+  const thirds = rankThirds(standings); // already sorted
+  // Top-8 third places (current best estimate)
+  const top8 = new Set(thirds.slice(0, 8).map((t) => t.group));
+  // Greedy assignment of 3rd-place teams to b3 slots
+  const used = new Set<GroupLetter>();
+  const slotRows: ProjectedSlot[][] = [];
+
+  // We need to assign in the order of the FIFA b3 slots, picking the top-ranked
+  // currently-top-8 third from each slot's cluster.
+  const b3Assignments = new Map<number, { team: string; group: GroupLetter; projected: boolean } | { team: null; description: string }>();
+
+  // First gather all b3 slot indices and clusters
+  const b3List: { row: number; col: number; cluster: GroupLetter[] }[] = [];
+  R32_STRUCTURE.forEach((pair, row) => {
+    pair.forEach((slot, col) => {
+      if (slot.kind === "b3") b3List.push({ row, col, cluster: slot.cluster });
+    });
+  });
+
+  for (const { row, col, cluster } of b3List) {
+    // candidates: groups in cluster, in current best-estimate top-8, not yet used
+    const candidates = thirds.filter(
+      (t) => cluster.includes(t.group) && top8.has(t.group) && !used.has(t.group),
+    );
+    if (candidates.length === 0) {
+      b3Assignments.set(row * 10 + col, {
+        team: null,
+        description: `Best 3rd — Group ${cluster.join("/")}`,
+      });
+    } else {
+      const pick = candidates[0];
+      used.add(pick.group);
+      b3Assignments.set(row * 10 + col, {
+        team: pick.team,
+        group: pick.group,
+        projected: !allGroupsComplete || !pick.complete,
+      });
+    }
+  }
+
+  R32_STRUCTURE.forEach((pair, row) => {
+    const rowOut: ProjectedSlot[] = [];
+    pair.forEach((slot, col) => {
+      if (slot.kind === "w") {
+        const s = standings[slot.g];
+        rowOut.push({ team: s.order[0], projected: !s.allPlayed, group: slot.g, role: "winner" });
+      } else if (slot.kind === "ru") {
+        const s = standings[slot.g];
+        rowOut.push({ team: s.order[1], projected: !s.allPlayed, group: slot.g, role: "runner-up" });
+      } else {
+        const a = b3Assignments.get(row * 10 + col)!;
+        if (a.team !== null) {
+          rowOut.push({ team: a.team, projected: a.projected, group: a.group, role: "3rd-place" });
+        } else {
+          rowOut.push({ team: null, description: a.description });
+        }
+      }
+    });
+    slotRows.push(rowOut);
+  });
+  return slotRows;
+}
+
+// ---------- UI ----------
+
+function PlayerTag({ team }: { team: string }) {
+  const owner = teamOwner(team);
+  if (!owner) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded px-1 py-0 text-[9px] font-bold"
+      style={{ background: PLAYER_COLOR[owner], color: "#0a0a0a" }}
+      title={`Owned by ${owner}`}
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-black/40" />
+      {owner}
+    </span>
+  );
+}
+
+function BracketTeam({ team, projected }: { team: string; projected: boolean }) {
+  const t = TEAMS[team];
+  return (
+    <span className={`inline-flex items-center gap-1 ${projected ? "italic text-muted-foreground" : ""}`}>
+      <span className="text-base leading-none">{t?.flag ?? "🏳️"}</span>
+      <span className="font-semibold">{team}</span>
+      {t && <PotBadge pot={t.pot} />}
+      <PlayerTag team={team} />
+    </span>
+  );
+}
+
 function Bracket() {
   const state = useAppState();
-  const groups = ["R32", "R16", "QF", "SF", "3rd", "Final"] as const;
-  const elimProbs = useMemo(() => computeElimProbs(), [state.scores]);
+  // recompute on score changes
+  const { groupProbs, standings, projectedR32 } = useMemo(() => {
+    void state;
+    return {
+      groupProbs: computeAllGroupProbs(),
+      standings: bestEstimateStandings(),
+      projectedR32: projectR32Slots(),
+    };
+  }, [state.scores]);
+
+  const otherStages = ["R16", "QF", "SF", "3rd", "Final"] as const;
+
   return (
     <div className="space-y-6">
       <Card className="p-4 bg-card border-border">
         <h2 className="text-lg font-bold mb-1">Group standings (live)</h2>
         <p className="text-[11px] text-muted-foreground mb-2">
-          % = simulated chance of group-stage elimination (Monte Carlo, 1,500 runs from current scores; top 2 + 8 best 3rd-placed advance).
+          Exact qualification / elimination probabilities from enumerating every possible result
+          of remaining group matches, using official FIFA 2026 tiebreakers
+          (pts → GD → GF → head-to-head pts/GD/GF).
         </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {GROUP_LETTERS.map((g) => <GroupTable key={g} letter={g} elimProbs={elimProbs} />)}
+          {GROUP_LETTERS.map((g) => (
+            <GroupTable key={g} letter={g} probs={groupProbs} standing={standings[g]} />
+          ))}
         </div>
       </Card>
 
-      {groups.map((stage) => (
+      <Card className="p-4 bg-card border-border">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-bold">Round of 32 — projected bracket</h3>
+          <span className="text-[10px] text-muted-foreground italic">
+            Projected slots shown in italics with a dashed border. Confirmed once their group(s) finish.
+          </span>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {KNOCKOUT_MATCHES.filter((m) => m.stage === "R32").map((m, i) => (
+            <ProjectedR32Card key={m.id} match={m} slots={projectedR32[i]} matchNumber={73 + i} />
+          ))}
+        </div>
+      </Card>
+
+      {otherStages.map((stage) => (
         <Card key={stage} className="p-4 bg-card border-border">
           <h3 className="font-bold mb-3">{stageLabel(stage)}</h3>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {KNOCKOUT_MATCHES.filter((m) => m.stage === stage).map((m) => (
-              <KnockoutSlot key={m.id} match={m} />
+              <EmptyKnockoutSlot key={m.id} match={m} />
             ))}
           </div>
         </Card>
@@ -808,135 +1146,49 @@ function stageLabel(s: string) {
   return ({ R32: "Round of 32", R16: "Round of 16", QF: "Quarter-finals", SF: "Semi-finals", "3rd": "Third-place play-off", Final: "Final" } as Record<string, string>)[s] ?? s;
 }
 
-// Poisson sample (mean ~1.3 goals) for simulating goals in unplayed matches.
-function simGoals(): number {
-  const L = Math.exp(-1.3);
-  let k = 0, p = 1;
-  do { k++; p *= Math.random(); } while (p > L);
-  return k - 1;
-}
-
-// FIFA group-stage tiebreakers: points, GD, GF, then head-to-head (pts/GD/GF among tied teams), then random.
-type TStat = { p: number; gf: number; ga: number; pts: number };
-type SimResult = { home: string; away: string; hs: number; as: number };
-
-function rankGroupTeams(teams: string[], stats: Record<string, TStat>, results: SimResult[]): string[] {
-  const base = (a: string, b: string) =>
-    stats[b].pts - stats[a].pts ||
-    (stats[b].gf - stats[b].ga) - (stats[a].gf - stats[a].ga) ||
-    stats[b].gf - stats[a].gf;
-  const sorted = [...teams].sort(base);
-  const out: string[] = [];
-  let i = 0;
-  while (i < sorted.length) {
-    let j = i + 1;
-    while (j < sorted.length && base(sorted[i], sorted[j]) === 0) j++;
-    const tied = sorted.slice(i, j);
-    if (tied.length <= 1) {
-      out.push(...tied);
-    } else {
-      // Mini-league among tied teams (head-to-head)
-      const h: Record<string, TStat> = {};
-      tied.forEach((t) => h[t] = { p: 0, gf: 0, ga: 0, pts: 0 });
-      const tiedSet = new Set(tied);
-      for (const r of results) {
-        if (!tiedSet.has(r.home) || !tiedSet.has(r.away)) continue;
-        h[r.home].gf += r.hs; h[r.home].ga += r.as;
-        h[r.away].gf += r.as; h[r.away].ga += r.hs;
-        if (r.hs > r.as) h[r.home].pts += 3;
-        else if (r.hs < r.as) h[r.away].pts += 3;
-        else { h[r.home].pts++; h[r.away].pts++; }
-      }
-      tied.sort((a, b) =>
-        h[b].pts - h[a].pts ||
-        (h[b].gf - h[b].ga) - (h[a].gf - h[a].ga) ||
-        h[b].gf - h[a].gf ||
-        Math.random() - 0.5
-      );
-      out.push(...tied);
-    }
-    i = j;
-  }
-  return out;
-}
-
-// Monte Carlo elimination probability for the group stage.
-// WC26: top 2 per group + 8 best 3rd-placed teams advance to R32 (16 of 48 out).
-// Played/live scores are fixed; unplayed matches are simulated.
-function computeElimProbs(N = 1500): Record<string, number> {
-  const snap = GROUP_MATCHES.map((m) => ({ m, s: displayScore(m.id) }));
-  const counts: Record<string, number> = {};
-  for (const g of GROUP_LETTERS) for (const t of GROUPS[g]) counts[t] = 0;
-
-  for (let i = 0; i < N; i++) {
-    const stats: Record<string, TStat> = {};
-    for (const g of GROUP_LETTERS) for (const t of GROUPS[g]) stats[t] = { p: 0, gf: 0, ga: 0, pts: 0 };
-    const results: SimResult[] = [];
-
-    for (const { m, s } of snap) {
-      const h = s ? s.home : simGoals();
-      const a = s ? s.away : simGoals();
-      const hs = stats[m.home], as_ = stats[m.away];
-      hs.p++; as_.p++;
-      hs.gf += h; hs.ga += a;
-      as_.gf += a; as_.ga += h;
-      if (h > a) hs.pts += 3;
-      else if (h < a) as_.pts += 3;
-      else { hs.pts++; as_.pts++; }
-      results.push({ home: m.home, away: m.away, hs: h, as: a });
-    }
-
-    const thirds: Array<{ team: string; pts: number; gd: number; gf: number; r: number }> = [];
-    for (const g of GROUP_LETTERS) {
-      const teams = rankGroupTeams(GROUPS[g], stats, results);
-      counts[teams[3]]++; // 4th: eliminated
-      const t3 = teams[2];
-      thirds.push({ team: t3, pts: stats[t3].pts, gd: stats[t3].gf - stats[t3].ga, gf: stats[t3].gf, r: Math.random() });
-    }
-    thirds.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || a.r - b.r);
-    for (let k = 8; k < thirds.length; k++) counts[thirds[k].team]++;
-  }
-
-  const probs: Record<string, number> = {};
-  for (const t in counts) probs[t] = counts[t] / N;
-  return probs;
-}
-
-function GroupTable({ letter, elimProbs }: { letter: typeof GROUP_LETTERS[number]; elimProbs: Record<string, number> }) {
-  useAppState();
-  const teams = GROUPS[letter];
-  const stats: Record<string, TStat> = {};
-  teams.forEach((t) => stats[t] = { p: 0, gf: 0, ga: 0, pts: 0 });
-  const results: SimResult[] = [];
-  for (const m of GROUP_MATCHES.filter((m) => m.group === letter)) {
-    const s = getState().scores[m.id];
-    if (!s?.played) continue;
-    stats[m.home].p++; stats[m.away].p++;
-    stats[m.home].gf += s.home; stats[m.home].ga += s.away;
-    stats[m.away].gf += s.away; stats[m.away].ga += s.home;
-    if (s.home > s.away) stats[m.home].pts += 3;
-    else if (s.home < s.away) stats[m.away].pts += 3;
-    else { stats[m.home].pts++; stats[m.away].pts++; }
-    results.push({ home: m.home, away: m.away, hs: s.home, as: s.away });
-  }
-  const sorted = rankGroupTeams(teams, stats, results);
+function GroupTable({
+  letter,
+  probs,
+  standing,
+}: {
+  letter: GroupLetter;
+  probs: Record<string, { q: number; t: number; e: number }>;
+  standing: GroupStanding;
+}) {
   return (
     <div className="rounded-md bg-secondary/30 p-2">
       <div className="text-xs font-black text-primary mb-1">Group {letter}</div>
       <table className="w-full text-[11px]">
         <tbody>
-          {sorted.map((t) => {
-            const ep = elimProbs[t] ?? 0;
-            const pct = Math.round(ep * 100);
-            const cls = ep >= 0.99 ? "text-destructive font-bold" : ep >= 0.5 ? "text-amber-400" : ep <= 0.01 ? "text-emerald-400 font-bold" : "text-muted-foreground";
-            const label = ep >= 0.995 ? "OUT" : ep <= 0.005 ? "SAFE" : `${pct}%`;
+          {standing.order.map((t) => {
+            const p = probs[t] ?? { q: 0, t: 0, e: 0 };
+            const st = standing.stats[t];
+            // status badge
+            let badge: ReactNode;
+            if (p.e >= 0.9999) {
+              badge = <span className="px-1 py-0.5 rounded bg-destructive/20 text-destructive font-bold">OUT</span>;
+            } else if (p.e <= 0.0001 && p.q >= 0.9999) {
+              badge = <span className="px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">THROUGH</span>;
+            } else if (p.e <= 0.0001) {
+              badge = <span className="px-1 py-0.5 rounded text-emerald-400">0%</span>;
+            } else {
+              badge = <span className="px-1 py-0.5 rounded text-amber-400">{(p.e * 100).toFixed(p.e < 0.1 ? 1 : 0)}%</span>;
+            }
             return (
               <tr key={t}>
-                <td className="py-0.5">{TEAMS[t].flag} {t}</td>
-                <td className="text-right tabular-nums text-muted-foreground">{stats[t].p}</td>
-                <td className="text-right tabular-nums text-muted-foreground">{stats[t].gf}:{stats[t].ga}</td>
-                <td className="text-right tabular-nums font-bold w-6">{stats[t].pts}</td>
-                <td className={`text-right tabular-nums w-10 ${cls}`} title="Simulated chance of group-stage elimination">{label}</td>
+                <td className="py-0.5 pr-1">
+                  <span className="inline-flex items-center gap-1">
+                    <span>{TEAMS[t].flag}</span>
+                    <span>{t}</span>
+                    <PlayerTag team={t} />
+                  </span>
+                </td>
+                <td className="text-right tabular-nums text-muted-foreground">{st.p}</td>
+                <td className="text-right tabular-nums text-muted-foreground">{st.gf}:{st.ga}</td>
+                <td className="text-right tabular-nums font-bold w-6">{st.pts}</td>
+                <td className="text-right w-12" title={`Qualify ${(p.q*100).toFixed(0)}% · 3rd ${(p.t*100).toFixed(0)}% · Eliminated ${(p.e*100).toFixed(1)}%`}>
+                  {badge}
+                </td>
               </tr>
             );
           })}
@@ -946,53 +1198,59 @@ function GroupTable({ letter, elimProbs }: { letter: typeof GROUP_LETTERS[number
   );
 }
 
-function KnockoutSlot({ match }: { match: Match }) {
-  const e = effectiveTeams(match);
-  const allTeams = Object.keys(TEAMS).sort();
-  const score = getState().scores[match.id];
-  const [home, setHome] = useState(score?.home?.toString() ?? "");
-  const [away, setAway] = useState(score?.away?.toString() ?? "");
-  const canSave = home !== "" && away !== "" && e.home && e.away;
-  function save() {
-    if (!canSave) return;
-    setScore(match.id, Number(home) || 0, Number(away) || 0, true);
-  }
-
+function ProjectedR32Card({ match, slots, matchNumber }: { match: Match; slots: ProjectedSlot[]; matchNumber: number }) {
+  const anyProjected = slots.some((s) => s.team === null || s.projected);
   return (
-    <div className="rounded-md bg-secondary/40 p-2 space-y-1.5">
-      <div className="text-[10px] text-muted-foreground"><LocalTime iso={match.date} /> · {match.city}</div>
-      <SlotRow team={e.home} onChange={(t) => setKnockoutSlot(match.id, "home", t)} allTeams={allTeams} />
-      <SlotRow team={e.away} onChange={(t) => setKnockoutSlot(match.id, "away", t)} allTeams={allTeams} />
-      {e.home && e.away && (
-        <div className="flex items-center gap-1 pt-1">
-          <Input type="number" min={0} value={home} onChange={(ev) => setHome(ev.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") save(); }} className="h-7 w-10 text-center p-1 text-xs" />
-          <span className="text-xs">–</span>
-          <Input type="number" min={0} value={away} onChange={(ev) => setAway(ev.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") save(); }} className="h-7 w-10 text-center p-1 text-xs" />
-        </div>
-      )}
+    <div
+      className={`rounded-md p-2 space-y-1 ${anyProjected ? "border border-dashed border-muted-foreground/40 bg-secondary/20" : "bg-secondary/40 border border-transparent"}`}
+    >
+      <div className="text-[10px] text-muted-foreground flex items-center justify-between gap-1">
+        <span>M{matchNumber} · <LocalTime iso={match.date} /></span>
+        {anyProjected && (
+          <span className="rounded bg-amber-400/15 text-amber-400 px-1 py-0 text-[9px] font-bold tracking-wide">
+            PROJECTED
+          </span>
+        )}
+      </div>
+      <div className="text-[10px] text-muted-foreground">{match.city}</div>
+      <div className="space-y-1">
+        {slots.map((s, i) => <ProjectedSlotRow key={i} slot={s} />)}
+      </div>
     </div>
   );
 }
 
-function SlotRow({ team, onChange, allTeams }: { team: string; onChange: (t: string) => void; allTeams: string[] }) {
-  const owner = team ? teamOwner(team) : undefined;
+function ProjectedSlotRow({ slot }: { slot: ProjectedSlot }) {
+  if (slot.team === null) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="w-1.5 h-5 rounded bg-muted-foreground/30" />
+        <span className="text-xs italic text-muted-foreground">{slot.description}</span>
+      </div>
+    );
+  }
+  const owner = teamOwner(slot.team);
   const color = owner ? PLAYER_COLOR[owner] : "transparent";
+  const roleLabel =
+    slot.role === "winner" ? `1${slot.group}`
+    : slot.role === "runner-up" ? `2${slot.group}`
+    : `3${slot.group}`;
   return (
     <div className="flex items-center gap-1.5">
-      <span className="w-1.5 h-6 rounded" style={{ background: color }} />
-      <Select value={team || "__"} onValueChange={(v) => onChange(v === "__" ? "" : v)}>
-        <SelectTrigger className="h-7 text-xs flex-1">
-          <SelectValue placeholder="TBD" />
-        </SelectTrigger>
-        <SelectContent className="max-h-72">
-          <SelectItem value="__">— TBD —</SelectItem>
-          {allTeams.map((t) => {
-            const o = teamOwner(t);
-            const g = teamGroup(t);
-            return <SelectItem key={t} value={t}>{TEAMS[t].flag} {t} · {g}{o ? ` · ${o}` : ""}</SelectItem>;
-          })}
-        </SelectContent>
-      </Select>
+      <span className="w-1.5 h-5 rounded" style={{ background: color }} />
+      <span className="text-[9px] text-muted-foreground w-6 tabular-nums">{roleLabel}</span>
+      <BracketTeam team={slot.team} projected={slot.projected} />
     </div>
   );
 }
+
+function EmptyKnockoutSlot({ match }: { match: Match }) {
+  return (
+    <div className="rounded-md bg-secondary/20 border border-dashed border-muted-foreground/30 p-2 space-y-1">
+      <div className="text-[10px] text-muted-foreground"><LocalTime iso={match.date} /> · {match.city}</div>
+      <div className="text-xs italic text-muted-foreground">TBD</div>
+      <div className="text-xs italic text-muted-foreground">TBD</div>
+    </div>
+  );
+}
+
