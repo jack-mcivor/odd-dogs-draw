@@ -975,7 +975,13 @@ const R32_STRUCTURE: Array<[R32Slot, R32Slot]> = [
 ];
 
 type ProjectedSlot =
-  | { team: string; projected: boolean; group: GroupLetter; role: "winner" | "runner-up" | "3rd-place" }
+  | {
+      team: string;
+      projected: boolean;
+      group?: GroupLetter;
+      role?: "winner" | "runner-up" | "3rd-place";
+      viaMatchId?: string;
+    }
   | { team: null; description: string };
 
 function projectR32Slots(): ProjectedSlot[][] {
@@ -1044,6 +1050,151 @@ function projectR32Slots(): ProjectedSlot[][] {
   return slotRows;
 }
 
+// ---------- Later-round projection ----------
+// Heuristic team strength: pot tier dominates, refined by current group-stage form.
+// Recomputes whenever group standings change, so the projected later-round bracket
+// updates in lock-step with live scores.
+function teamStrengthScore(
+  team: string,
+  standings: Record<GroupLetter, GroupStanding>,
+): number {
+  const t = TEAMS[team];
+  const potScore = t ? (5 - t.pot) * 100 : 0; // P1=400 … P4=100
+  for (const g of GROUP_LETTERS) {
+    const st = standings[g].stats[team];
+    if (st) {
+      return potScore + st.pts * 12 + (st.gf - st.ga) * 2 + st.gf;
+    }
+  }
+  return potScore;
+}
+
+// If a knockout match has been played AND its slots are filled, return the
+// actual winner / loser so confirmed teams cascade through later rounds.
+function knockoutActualPair(
+  matchId: string,
+  scores: Record<string, { home: number; away: number; played: boolean }>,
+  knockoutSlots: Record<string, { home?: string; away?: string }>,
+): { winner: string; loser: string } | null {
+  const s = scores[matchId];
+  if (!s?.played) return null;
+  const ko = knockoutSlots[matchId];
+  if (!ko?.home || !ko?.away) return null;
+  if (s.home > s.away) return { winner: ko.home, loser: ko.away };
+  if (s.away > s.home) return { winner: ko.away, loser: ko.home };
+  return null; // tie — assume penalty shoot-out result not yet known
+}
+
+function projectMatchOutcome(
+  a: ProjectedSlot,
+  b: ProjectedSlot,
+  matchId: string,
+  standings: Record<GroupLetter, GroupStanding>,
+  scores: Record<string, { home: number; away: number; played: boolean }>,
+  knockoutSlots: Record<string, { home?: string; away?: string }>,
+): { winner: ProjectedSlot; loser: ProjectedSlot } {
+  const actual = knockoutActualPair(matchId, scores, knockoutSlots);
+  if (actual) {
+    return {
+      winner: { team: actual.winner, projected: false, viaMatchId: matchId },
+      loser: { team: actual.loser, projected: false, viaMatchId: matchId },
+    };
+  }
+  type HasTeam = { team: string; group?: GroupLetter };
+  const aHas: HasTeam | null = a.team === null ? null : { team: a.team, group: a.group };
+  const bHas: HasTeam | null = b.team === null ? null : { team: b.team, group: b.group };
+  if (!aHas && !bHas) {
+    return {
+      winner: { team: null, description: `Winner ${matchId}` },
+      loser: { team: null, description: `Loser ${matchId}` },
+    };
+  }
+  if (!aHas && bHas) {
+    return {
+      winner: { team: bHas.team, projected: true, group: bHas.group, viaMatchId: matchId },
+      loser: { team: null, description: `Loser ${matchId}` },
+    };
+  }
+  if (!bHas && aHas) {
+    return {
+      winner: { team: aHas.team, projected: true, group: aHas.group, viaMatchId: matchId },
+      loser: { team: null, description: `Loser ${matchId}` },
+    };
+  }
+  const sa = teamStrengthScore(aHas!.team, standings);
+  const sb = teamStrengthScore(bHas!.team, standings);
+  const [w, l] = sa >= sb ? [aHas!, bHas!] : [bHas!, aHas!];
+  return {
+    winner: { team: w.team, projected: true, group: w.group, viaMatchId: matchId },
+    loser: { team: l.team, projected: true, group: l.group, viaMatchId: matchId },
+  };
+
+}
+
+type RoundProjection = {
+  R32: ProjectedSlot[][];
+  R16: ProjectedSlot[][];
+  QF: ProjectedSlot[][];
+  SF: ProjectedSlot[][];
+  "3rd": ProjectedSlot[][];
+  Final: ProjectedSlot[][];
+};
+
+function projectAllRounds(
+  standings: Record<GroupLetter, GroupStanding>,
+  scores: Record<string, { home: number; away: number; played: boolean }>,
+  knockoutSlots: Record<string, { home?: string; away?: string }>,
+): RoundProjection {
+  const R32 = projectR32Slots();
+
+  const r32Winners: ProjectedSlot[] = R32.map((pair, i) =>
+    projectMatchOutcome(pair[0], pair[1], `R32-${i + 1}`, standings, scores, knockoutSlots).winner,
+  );
+
+  const R16: ProjectedSlot[][] = [];
+  const r16Winners: ProjectedSlot[] = [];
+  for (let i = 0; i < 8; i++) {
+    const a = r32Winners[i * 2];
+    const b = r32Winners[i * 2 + 1];
+    R16.push([a, b]);
+    r16Winners.push(
+      projectMatchOutcome(a, b, `R16-${i + 1}`, standings, scores, knockoutSlots).winner,
+    );
+  }
+
+  const QF: ProjectedSlot[][] = [];
+  const qfWinners: ProjectedSlot[] = [];
+  for (let i = 0; i < 4; i++) {
+    const a = r16Winners[i * 2];
+    const b = r16Winners[i * 2 + 1];
+    QF.push([a, b]);
+    qfWinners.push(
+      projectMatchOutcome(a, b, `QF-${i + 1}`, standings, scores, knockoutSlots).winner,
+    );
+  }
+
+  const SF: ProjectedSlot[][] = [];
+  const sfWinners: ProjectedSlot[] = [];
+  const sfLosers: ProjectedSlot[] = [];
+  for (let i = 0; i < 2; i++) {
+    const a = qfWinners[i * 2];
+    const b = qfWinners[i * 2 + 1];
+    SF.push([a, b]);
+    const out = projectMatchOutcome(a, b, `SF-${i + 1}`, standings, scores, knockoutSlots);
+    sfWinners.push(out.winner);
+    sfLosers.push(out.loser);
+  }
+
+  return {
+    R32,
+    R16,
+    QF,
+    SF,
+    "3rd": [[sfLosers[0], sfLosers[1]]],
+    Final: [[sfWinners[0], sfWinners[1]]],
+  };
+}
+
 // ---------- UI ----------
 
 function PlayerTag({ team }: { team: string }) {
@@ -1075,17 +1226,24 @@ function BracketTeam({ team, projected }: { team: string; projected: boolean }) 
 
 function Bracket() {
   const state = useAppState();
-  // recompute on score changes
-  const { groupProbs, standings, projectedR32 } = useMemo(() => {
+  // recompute on score / knockout-slot changes
+  const { groupProbs, standings, rounds } = useMemo(() => {
     void state;
+    const standings = bestEstimateStandings();
     return {
       groupProbs: computeAllGroupProbs(),
-      standings: bestEstimateStandings(),
-      projectedR32: projectR32Slots(),
+      standings,
+      rounds: projectAllRounds(standings, state.scores, state.knockoutSlots),
     };
-  }, [state.scores]);
+  }, [state.scores, state.knockoutSlots]);
 
-  const otherStages = ["R16", "QF", "SF", "3rd", "Final"] as const;
+  const laterStages = [
+    { key: "R16", label: "Round of 16" },
+    { key: "QF", label: "Quarter-finals" },
+    { key: "SF", label: "Semi-finals" },
+    { key: "3rd", label: "Third-place play-off" },
+    { key: "Final", label: "Final" },
+  ] as const;
 
   return (
     <div className="space-y-6">
@@ -1112,21 +1270,38 @@ function Bracket() {
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {KNOCKOUT_MATCHES.filter((m) => m.stage === "R32").map((m, i) => (
-            <ProjectedR32Card key={m.id} match={m} slots={projectedR32[i]} matchNumber={73 + i} />
+            <ProjectedKnockoutCard key={m.id} match={m} slots={rounds.R32[i]} label={`M${73 + i}`} />
           ))}
         </div>
       </Card>
 
-      {otherStages.map((stage) => (
-        <Card key={stage} className="p-4 bg-card border-border">
-          <h3 className="font-bold mb-3">{stageLabel(stage)}</h3>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {KNOCKOUT_MATCHES.filter((m) => m.stage === stage).map((m) => (
-              <EmptyKnockoutSlot key={m.id} match={m} />
-            ))}
-          </div>
-        </Card>
-      ))}
+      {laterStages.map(({ key, label }) => {
+        const matches = KNOCKOUT_MATCHES.filter((m) => m.stage === key);
+        const slotsByMatch = rounds[key];
+        return (
+          <Card key={key} className="p-4 bg-card border-border">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold">{label} — projected matchups</h3>
+              <span className="text-[10px] text-muted-foreground italic">
+                Projected from team strength + live group form. Updates as scores come in.
+              </span>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {matches.map((m, i) => (
+                <ProjectedKnockoutCard
+                  key={m.id}
+                  match={m}
+                  slots={slotsByMatch[i] ?? [
+                    { team: null, description: "TBD" },
+                    { team: null, description: "TBD" },
+                  ]}
+                  label={m.id}
+                />
+              ))}
+            </div>
+          </Card>
+        );
+      })}
 
       <Card className="p-4 bg-card border-border">
         <h3 className="font-bold mb-2">Player colour key</h3>
@@ -1141,10 +1316,6 @@ function Bracket() {
       </Card>
     </div>
   );
-}
-
-function stageLabel(s: string) {
-  return ({ R32: "Round of 32", R16: "Round of 16", QF: "Quarter-finals", SF: "Semi-finals", "3rd": "Third-place play-off", Final: "Final" } as Record<string, string>)[s] ?? s;
 }
 
 function GroupTable({
@@ -1198,14 +1369,22 @@ function GroupTable({
   );
 }
 
-function ProjectedR32Card({ match, slots, matchNumber }: { match: Match; slots: ProjectedSlot[]; matchNumber: number }) {
+function ProjectedKnockoutCard({
+  match,
+  slots,
+  label,
+}: {
+  match: Match;
+  slots: ProjectedSlot[];
+  label: string;
+}) {
   const anyProjected = slots.some((s) => s.team === null || s.projected);
   return (
     <div
       className={`rounded-md p-2 space-y-1 ${anyProjected ? "border border-dashed border-muted-foreground/40 bg-secondary/20" : "bg-secondary/40 border border-transparent"}`}
     >
       <div className="text-[10px] text-muted-foreground flex items-center justify-between gap-1">
-        <span>M{matchNumber} · <LocalTime iso={match.date} /></span>
+        <span>{label} · <LocalTime iso={match.date} /></span>
         {anyProjected && (
           <span className="rounded bg-amber-400/15 text-amber-400 px-1 py-0 text-[9px] font-bold tracking-wide">
             PROJECTED
@@ -1234,22 +1413,15 @@ function ProjectedSlotRow({ slot }: { slot: ProjectedSlot }) {
   const roleLabel =
     slot.role === "winner" ? `1${slot.group}`
     : slot.role === "runner-up" ? `2${slot.group}`
-    : `3${slot.group}`;
+    : slot.role === "3rd-place" ? `3${slot.group}`
+    : "";
   return (
     <div className="flex items-center gap-1.5">
       <span className="w-1.5 h-5 rounded" style={{ background: color }} />
-      <span className="text-[9px] text-muted-foreground w-6 tabular-nums">{roleLabel}</span>
+      {roleLabel && (
+        <span className="text-[9px] text-muted-foreground w-6 tabular-nums">{roleLabel}</span>
+      )}
       <BracketTeam team={slot.team} projected={slot.projected} />
-    </div>
-  );
-}
-
-function EmptyKnockoutSlot({ match }: { match: Match }) {
-  return (
-    <div className="rounded-md bg-secondary/20 border border-dashed border-muted-foreground/30 p-2 space-y-1">
-      <div className="text-[10px] text-muted-foreground"><LocalTime iso={match.date} /> · {match.city}</div>
-      <div className="text-xs italic text-muted-foreground">TBD</div>
-      <div className="text-xs italic text-muted-foreground">TBD</div>
     </div>
   );
 }
