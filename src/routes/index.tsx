@@ -986,7 +986,10 @@ type ProjectedSlot =
   | { team: null; description: string; confidence?: number };
 
 
-function projectR32Slots(): ProjectedSlot[][] {
+function projectR32Slots(
+  probs: Record<string, { q: number; t: number; e: number }>,
+): ProjectedSlot[][] {
+
   const standings = bestEstimateStandings();
   const allGroupsComplete = GROUP_LETTERS.every((g) => standings[g].allPlayed);
   const thirds = rankThirds(standings); // already sorted
