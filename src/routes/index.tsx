@@ -10,7 +10,7 @@ import {
   computeAllTotals, displayScore, effectiveTeams, getState, isMatchLive,
   isTeamEliminated, loadFromStorage, nextUpcoming, recentResults, useAppState,
 } from "@/lib/wc-store";
-import { knockoutAdvanceProbability, priceMatch } from "@/lib/wc-probability";
+import { knockoutAdvanceProbability, priceMatch, teamElo } from "@/lib/wc-probability";
 import { MatchDetailProvider, useMatchDetail } from "@/components/MatchDetailModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -767,32 +767,32 @@ const PALETTE = ["#FFD700","#14b8a6","#3b82f6","#ec4899","#f59e0b","#a78bfa","#3
 PLAYERS.forEach((p, i) => { PLAYER_COLOR[p.name] = PALETTE[i]; });
 
 // ---------- FIFA 2026 group-stage tiebreakers ----------
-// 1) points 2) GD (all) 3) GF (all) 4) H2H pts 5) H2H GD 6) H2H GF
-// 7) fair-play / FIFA ranking / draw of lots → treated as tied (no data)
+// 1) points 2) head-to-head points/result 3) GD 4) GF 5) FIFA ranking (Elo fallback)
 type TStat = { p: number; gf: number; ga: number; pts: number };
 type MatchOutcome = { home: string; away: string; hs: number; as: number };
 
 function rankBuckets(teams: string[], stats: Record<string, TStat>, results: MatchOutcome[]): string[][] {
   if (teams.length <= 1) return teams.length === 1 ? [[teams[0]]] : [];
-  const cmpBase = (a: string, b: string) =>
-    stats[b].pts - stats[a].pts ||
-    (stats[b].gf - stats[b].ga) - (stats[a].gf - stats[a].ga) ||
-    stats[b].gf - stats[a].gf;
-  const sorted = [...teams].sort(cmpBase);
+  const cmpPoints = (a: string, b: string) => stats[b].pts - stats[a].pts;
+  const sorted = [...teams].sort(cmpPoints);
   const out: string[][] = [];
   let i = 0;
   while (i < sorted.length) {
     let j = i + 1;
-    while (j < sorted.length && cmpBase(sorted[i], sorted[j]) === 0) j++;
+    while (j < sorted.length && cmpPoints(sorted[i], sorted[j]) === 0) j++;
     const tied = sorted.slice(i, j);
     if (tied.length === 1) out.push(tied);
-    else out.push(...h2hBuckets(tied, results));
+    else out.push(...resolvePointTie(tied, stats, results));
     i = j;
   }
   return out;
 }
 
-function h2hBuckets(tied: string[], results: MatchOutcome[]): string[][] {
+function resolvePointTie(
+  tied: string[],
+  stats: Record<string, TStat>,
+  results: MatchOutcome[],
+): string[][] {
   const h: Record<string, TStat> = {};
   tied.forEach((t) => h[t] = { p: 0, gf: 0, ga: 0, pts: 0 });
   const set = new Set(tied);
@@ -805,22 +805,34 @@ function h2hBuckets(tied: string[], results: MatchOutcome[]): string[][] {
     else if (r.hs < r.as) h[r.away].pts += 3;
     else { h[r.home].pts++; h[r.away].pts++; }
   }
+  const cmpHeadToHead = (a: string, b: string) => h[b].pts - h[a].pts;
+  const sorted = [...tied].sort(cmpHeadToHead);
+  const out: string[][] = [];
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i + 1;
+    while (j < sorted.length && cmpHeadToHead(sorted[i], sorted[j]) === 0) j++;
+    const sub = sorted.slice(i, j);
+    if (sub.length === 1) out.push(sub);
+    else if (sub.length === tied.length) out.push(...resolveOverallTie(sub, stats));
+    else out.push(...resolvePointTie(sub, stats, results));
+    i = j;
+  }
+  return out;
+}
+
+function resolveOverallTie(teams: string[], stats: Record<string, TStat>): string[][] {
   const cmp = (a: string, b: string) =>
-    h[b].pts - h[a].pts ||
-    (h[b].gf - h[b].ga) - (h[a].gf - h[a].ga) ||
-    h[b].gf - h[a].gf;
-  const sorted = [...tied].sort(cmp);
+    (stats[b].gf - stats[b].ga) - (stats[a].gf - stats[a].ga) ||
+    stats[b].gf - stats[a].gf ||
+    teamElo(b) - teamElo(a);
+  const sorted = [...teams].sort(cmp);
   const out: string[][] = [];
   let i = 0;
   while (i < sorted.length) {
     let j = i + 1;
     while (j < sorted.length && cmp(sorted[i], sorted[j]) === 0) j++;
-    const sub = sorted.slice(i, j);
-    if (sub.length === 1 || sub.length === tied.length) {
-      out.push(sub); // fully isolated, or H2H couldn't separate → step 7 (treat as tied)
-    } else {
-      out.push(...h2hBuckets(sub, results));
-    }
+    out.push(sorted.slice(i, j));
     i = j;
   }
   return out;
@@ -961,7 +973,7 @@ function bestEstimateStandings(): Record<GroupLetter, GroupStanding> {
   return out;
 }
 
-// Rank third-place teams across groups: pts, GD, GF (fair-play/ranking treated as tied).
+// Rank third-place teams across groups: pts, GD, GF, FIFA ranking (Elo fallback).
 function rankThirds(standings: Record<GroupLetter, GroupStanding>): { team: string; group: GroupLetter; complete: boolean }[] {
   const arr = GROUP_LETTERS.map((g) => {
     const s = standings[g];
@@ -969,7 +981,7 @@ function rankThirds(standings: Record<GroupLetter, GroupStanding>): { team: stri
     const st = s.stats[t];
     return { team: t, group: g, complete: s.allPlayed, pts: st.pts, gd: st.gf - st.ga, gf: st.gf };
   });
-  arr.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
+  arr.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || teamElo(b.team) - teamElo(a.team));
   return arr.map(({ team, group, complete }) => ({ team, group, complete }));
 }
 
@@ -1292,7 +1304,7 @@ function Bracket() {
         <p className="text-[11px] text-muted-foreground mb-2">
           Model-weighted qualification / elimination probabilities from enumerating every possible result
           class of remaining group matches, using official FIFA 2026 tiebreakers
-          (pts → GD → GF → head-to-head pts/GD/GF).
+          (pts → head-to-head → GD → GF → Elo ranking).
         </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {GROUP_LETTERS.map((g) => (

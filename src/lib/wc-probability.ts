@@ -135,6 +135,11 @@ function normaliseTeamCode(team: string): string | null {
   return TEAM_CODES[team.trim()] ?? null;
 }
 
+export function teamElo(team: string): number {
+  const code = normaliseTeamCode(team);
+  return code ? (TEAM_ELOS[code] ?? 0) : 0;
+}
+
 function ratingDiff(home: string, away: string): number | null {
   const homeCode = normaliseTeamCode(home);
   const awayCode = normaliseTeamCode(away);
