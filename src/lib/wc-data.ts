@@ -35,17 +35,17 @@ export interface MatchData {
 }
 
 export const PLAYERS: PlayerAssignment[] = [
-  { name: "J'Ashley", teams: [{ pot: 1, team: "Belgium" }, { pot: 2, team: "South Korea" }, { pot: 3, team: "Côte d'Ivoire" }, { pot: 4, team: "Sweden" }] },
-  { name: "Edward", teams: [{ pot: 1, team: "Netherlands" }, { pot: 2, team: "Senegal" }, { pot: 3, team: "Panama" }, { pot: 4, team: "Iraq" }] },
+  { name: "Jash", teams: [{ pot: 1, team: "Belgium" }, { pot: 2, team: "South Korea" }, { pot: 3, team: "Côte d'Ivoire" }, { pot: 4, team: "Sweden" }] },
+  { name: "Ed", teams: [{ pot: 1, team: "Netherlands" }, { pot: 2, team: "Senegal" }, { pot: 3, team: "Panama" }, { pot: 4, team: "Iraq" }] },
   { name: "Xavier", teams: [{ pot: 1, team: "Mexico" }, { pot: 2, team: "Austria" }, { pot: 3, team: "Egypt" }, { pot: 4, team: "Ghana" }] },
   { name: "Neil", teams: [{ pot: 1, team: "Portugal" }, { pot: 2, team: "Iran" }, { pot: 3, team: "Qatar" }, { pot: 4, team: "Bosnia & Herzegovina" }] },
   { name: "Jess", teams: [{ pot: 1, team: "France" }, { pot: 2, team: "Ecuador" }, { pot: 3, team: "Algeria" }, { pot: 4, team: "New Zealand" }] },
   { name: "Gigi", teams: [{ pot: 1, team: "Brazil" }, { pot: 2, team: "Croatia" }, { pot: 3, team: "South Africa" }, { pot: 4, team: "Haiti" }] },
-  { name: "Andy", teams: [{ pot: 1, team: "United States" }, { pot: 2, team: "Colombia" }, { pot: 3, team: "Scotland" }, { pot: 4, team: "Curaçao" }] },
-  { name: "Better Andy", teams: [{ pot: 1, team: "Argentina" }, { pot: 2, team: "Morocco" }, { pot: 3, team: "Tunisia" }, { pot: 4, team: "DR Congo" }] },
-  { name: "Victoria", teams: [{ pot: 1, team: "Germany" }, { pot: 2, team: "Japan" }, { pot: 3, team: "Paraguay" }, { pot: 4, team: "Türkiye" }] },
+  { name: "Landy", teams: [{ pot: 1, team: "United States" }, { pot: 2, team: "Colombia" }, { pot: 3, team: "Scotland" }, { pot: 4, team: "Curaçao" }] },
+  { name: "Bandy", teams: [{ pot: 1, team: "Argentina" }, { pot: 2, team: "Morocco" }, { pot: 3, team: "Tunisia" }, { pot: 4, team: "DR Congo" }] },
+  { name: "Vic", teams: [{ pot: 1, team: "Germany" }, { pot: 2, team: "Japan" }, { pot: 3, team: "Paraguay" }, { pot: 4, team: "Türkiye" }] },
   { name: "Dana", teams: [{ pot: 1, team: "Spain" }, { pot: 2, team: "Australia" }, { pot: 3, team: "Saudi Arabia" }, { pot: 4, team: "Jordan" }] },
-  { name: "Michelle", teams: [{ pot: 1, team: "Canada" }, { pot: 2, team: "Uruguay" }, { pot: 3, team: "Norway" }, { pot: 4, team: "Cape Verde" }] },
+  { name: "Mikki", teams: [{ pot: 1, team: "Canada" }, { pot: 2, team: "Uruguay" }, { pot: 3, team: "Norway" }, { pot: 4, team: "Cape Verde" }] },
   { name: "Violet", teams: [{ pot: 1, team: "England" }, { pot: 2, team: "Switzerland" }, { pot: 3, team: "Uzbekistan" }, { pot: 4, team: "Czechia" }] },
 ];
 

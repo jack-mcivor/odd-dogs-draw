@@ -1474,6 +1474,7 @@ function GroupTable({
   standing: GroupStanding;
 }) {
   const formatPlacementChance = (chance: number) => {
+    if (chance <= 0.0001) return "";
     if (chance >= 0.9995) return "✓";
     const pct = chance * 100;
     if (pct < 0.1) return "<0.1%";
@@ -1481,54 +1482,46 @@ function GroupTable({
     return `${pct.toFixed(0)}%`;
   };
 
-  const placementClass = (kind: "advance" | "warning" | "out") => {
-    if (kind === "advance") return "bg-emerald-500/15 text-emerald-400";
-    if (kind === "out") return "bg-destructive/15 text-destructive";
-    return "bg-amber-400/15 text-amber-400";
-  };
-
   return (
     <div className="rounded-md bg-secondary/30 p-2">
       <div className="text-xs font-black text-primary mb-1">Group {letter}</div>
-      <table className="w-full text-[11px]">
+      <table className="w-full table-fixed text-[10px]">
+        <colgroup>
+          <col className="w-[42%]" />
+          <col className="w-[11.6%]" />
+          <col className="w-[11.6%]" />
+          <col className="w-[11.6%]" />
+          <col className="w-[11.6%]" />
+          <col className="w-[11.6%]" />
+        </colgroup>
+        <thead>
+          <tr className="text-muted-foreground">
+            <th className="pb-1 pr-1 text-left font-semibold">Team</th>
+            <th className="pb-1 text-right font-semibold" title="Chance of finishing 1st">1st</th>
+            <th className="pb-1 text-right font-semibold" title="Chance of finishing 2nd">2nd</th>
+            <th className="pb-1 text-right font-semibold" title="Chance of finishing 3rd and qualifying as a best third-place team">3T</th>
+            <th className="pb-1 text-right font-semibold" title="Chance of finishing 3rd and going out">3O</th>
+            <th className="pb-1 text-right font-semibold" title="Chance of finishing 4th">4th</th>
+          </tr>
+        </thead>
         <tbody>
           {standing.order.map((t) => {
             const p = probs[t] ?? emptyPlacementProbs();
-            const st = standing.stats[t];
-            const placements = [
-              { label: "1st", chance: p.first, kind: "advance" as const },
-              { label: "2nd", chance: p.second, kind: "advance" as const },
-              { label: "3rd & thru", chance: p.thirdThrough, kind: "advance" as const },
-              { label: "3rd & out", chance: p.thirdOut, kind: "warning" as const },
-              { label: "4th", chance: p.fourth, kind: "out" as const },
-            ].filter((placement) => placement.chance > 0.0001);
+            const title = `1st ${(p.first*100).toFixed(1)}% · 2nd ${(p.second*100).toFixed(1)}% · 3rd & thru ${(p.thirdThrough*100).toFixed(1)}% · 3rd & out ${(p.thirdOut*100).toFixed(1)}% · 4th ${(p.fourth*100).toFixed(1)}%`;
             return (
-              <tr key={t}>
-                <td className="py-0.5 pr-1">
-                  <span className="inline-flex items-center gap-1">
+              <tr key={t} title={title} className="border-t border-border/30 first:border-t-0">
+                <td className="py-1 pr-1">
+                  <span className="flex min-w-0 items-center gap-1">
                     <span>{TEAMS[t].flag}</span>
-                    <span>{t}</span>
+                    <span className="truncate">{t}</span>
                     <PlayerTag team={t} />
                   </span>
                 </td>
-                <td className="text-right tabular-nums text-muted-foreground">{st.p}</td>
-                <td className="text-right tabular-nums text-muted-foreground">{st.gf}:{st.ga}</td>
-                <td className="text-right tabular-nums font-bold w-6">{st.pts}</td>
-                <td
-                  className="text-right min-w-[9rem]"
-                  title={`1st ${(p.first*100).toFixed(1)}% · 2nd ${(p.second*100).toFixed(1)}% · 3rd & thru ${(p.thirdThrough*100).toFixed(1)}% · 3rd & out ${(p.thirdOut*100).toFixed(1)}% · 4th ${(p.fourth*100).toFixed(1)}%`}
-                >
-                  <div className="flex flex-wrap justify-end gap-1">
-                    {placements.map((placement) => (
-                      <span
-                        key={placement.label}
-                        className={`rounded px-1 py-0.5 font-bold tabular-nums ${placementClass(placement.kind)}`}
-                      >
-                        {placement.label} {formatPlacementChance(placement.chance)}
-                      </span>
-                    ))}
-                  </div>
-                </td>
+                <td className="py-1 text-right font-semibold tabular-nums text-emerald-400">{formatPlacementChance(p.first)}</td>
+                <td className="py-1 text-right font-semibold tabular-nums text-emerald-400">{formatPlacementChance(p.second)}</td>
+                <td className="py-1 text-right font-semibold tabular-nums text-emerald-400">{formatPlacementChance(p.thirdThrough)}</td>
+                <td className="py-1 text-right font-semibold tabular-nums text-amber-400">{formatPlacementChance(p.thirdOut)}</td>
+                <td className="py-1 text-right font-semibold tabular-nums text-destructive">{formatPlacementChance(p.fourth)}</td>
               </tr>
             );
           })}

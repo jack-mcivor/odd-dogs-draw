@@ -37,17 +37,17 @@ export const WILDCARD_ASSIGNMENTS: Record<
   string,
   { pot3: [string, string]; pot4: [string, string] }
 > = {
-  "J'Ashley":    { pot3: ["Côte d'Ivoire", "Curaçao"],          pot4: ["Sweden", "Tunisia"] },
-  "Edward":      { pot3: ["Panama", "Ghana"],                    pot4: ["Iraq", "Senegal"] },
+  "Jash":        { pot3: ["Côte d'Ivoire", "Curaçao"],          pot4: ["Sweden", "Tunisia"] },
+  "Ed":          { pot3: ["Panama", "Ghana"],                    pot4: ["Iraq", "Senegal"] },
   "Xavier":      { pot3: ["Egypt", "New Zealand"],               pot4: ["Ghana", "Panama"] },
   "Neil":        { pot3: ["Bosnia & Herzegovina", "Qatar"],       pot4: ["Bosnia & Herzegovina", "Switzerland"] },
   "Jess":        { pot3: ["Algeria", "Jordan"],                  pot4: ["New Zealand", "Iran"] },
   "Gigi":        { pot3: ["Czechia", "South Africa"],            pot4: ["Haiti", "Scotland"] },
-  "Andy":        { pot3: ["Scotland", "Haiti"],                  pot4: ["Curaçao", "Ecuador"] },
-  "Better Andy": { pot3: ["Sweden", "Tunisia"],                  pot4: ["DR Congo", "Uzbekistan"] },
-  "Victoria":    { pot3: ["Paraguay", "Türkiye"],                pot4: ["Türkiye", "Australia"] },
+  "Landy":       { pot3: ["Scotland", "Haiti"],                  pot4: ["Curaçao", "Ecuador"] },
+  "Bandy":       { pot3: ["Sweden", "Tunisia"],                  pot4: ["DR Congo", "Uzbekistan"] },
+  "Vic":         { pot3: ["Paraguay", "Türkiye"],                pot4: ["Türkiye", "Australia"] },
   "Dana":        { pot3: ["Saudi Arabia", "Cape Verde"],         pot4: ["Jordan", "Algeria"] },
-  "Michelle":    { pot3: ["Norway", "Iraq"],                     pot4: ["Cape Verde", "Saudi Arabia"] },
+  "Mikki":       { pot3: ["Norway", "Iraq"],                     pot4: ["Cape Verde", "Saudi Arabia"] },
   "Violet":      { pot3: ["Uzbekistan", "DR Congo"],             pot4: ["Czechia", "South Africa"] },
 };
 
