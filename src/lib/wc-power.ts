@@ -39,6 +39,7 @@ interface PlayedMatch {
   goalsHome: number;
   goalsAway: number;
   isKnockout: boolean;
+  stage: string;
 }
 
 function collectPlayedMatches(): PlayedMatch[] {
@@ -55,6 +56,7 @@ function collectPlayedMatches(): PlayedMatch[] {
       goalsHome: score.home,
       goalsAway: score.away,
       isKnockout: m.stage !== "group",
+      stage: m.stage,
     });
   }
   out.sort((a, b) => a.date.localeCompare(b.date));
