@@ -1624,3 +1624,101 @@ function ProjectedSlotRow({ slot }: { slot: ProjectedSlot }) {
   );
 
 }
+
+/* ---------------- POWER INDEX ---------------- */
+
+function nextMatchAdvancePct(team: string): number | null {
+  const now = Date.now();
+  const upcoming = ALL_MATCHES
+    .filter((m) => {
+      const ds = displayScore(m.id);
+      if (ds?.played) return false;
+      const e = effectiveTeams(m);
+      return e.home === team || e.away === team;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const next = upcoming.find((m) => new Date(m.date).getTime() >= now - 1000 * 60 * 60 * 4) ?? upcoming[0];
+  if (!next) return null;
+  const e = effectiveTeams(next);
+  const price = priceMatch(e.home, e.away);
+  if (!price) return null;
+  if (next.stage === "group") {
+    return team === e.home ? price.homeWin : price.awayWin;
+  }
+  const adv = knockoutAdvanceProbability(e.home, e.away);
+  if (adv === null) return null;
+  return team === e.home ? adv : 1 - adv;
+}
+
+function PowerIndexTab() {
+  useAppState();
+  useLiveState();
+  const rows = useMemo(() => computeTeamPower(), [getState(), useLiveState()]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Card className="p-5 bg-card border-border">
+        <div className="flex items-center gap-2 mb-1">
+          <Zap className="w-5 h-5 text-primary" />
+          <h2 className="text-xl font-bold">Power Index</h2>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button type="button" aria-label="What is the Power Index?" className="text-muted-foreground hover:text-foreground transition">
+                <Info className="w-4 h-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[260px] text-center">
+              A live rating that rewards goals scored against stronger opponents. Updates after every match.
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4">
+          Live Elo seeded from FIFA rank (11 Jun 2026), replayed from every played match.
+        </p>
+
+        <div className="overflow-x-auto -mx-5 px-5">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-wide text-muted-foreground border-b border-border">
+                <th className="text-left font-bold py-2 pr-2">#</th>
+                <th className="text-left font-bold py-2 pr-2">Team</th>
+                <th className="text-left font-bold py-2 pr-2">Grp</th>
+                <th className="text-right font-bold py-2 pr-2">Power</th>
+                <th className="text-right font-bold py-2 pr-2">Elo</th>
+                <th className="text-right font-bold py-2 pr-2">GF</th>
+                <th className="text-right font-bold py-2 pr-2">GA</th>
+                <th className="text-right font-bold py-2">Adv %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const adv = nextMatchAdvancePct(r.team);
+                const eliminated = isTeamEliminated(r.team);
+                return (
+                  <tr
+                    key={r.team}
+                    className={`border-b border-border/40 ${i === 0 ? "bg-primary/10" : ""} ${eliminated ? "opacity-50" : ""}`}
+                  >
+                    <td className="py-2 pr-2 tabular-nums font-bold text-muted-foreground">{i + 1}</td>
+                    <td className="py-2 pr-2"><TeamChip team={r.team} showOwner /></td>
+                    <td className="py-2 pr-2 text-xs text-muted-foreground">{r.group ?? "—"}</td>
+                    <td className="py-2 pr-2 text-right tabular-nums font-black text-primary">{r.powerIndex.toFixed(1)}</td>
+                    <td className="py-2 pr-2 text-right tabular-nums">{Math.round(r.liveElo)}</td>
+                    <td className="py-2 pr-2 text-right tabular-nums">{r.goalsFor}</td>
+                    <td className="py-2 pr-2 text-right tabular-nums">{r.goalsAgainst}</td>
+                    <td className="py-2 text-right tabular-nums text-xs">
+                      {eliminated ? <span className="text-destructive">OUT</span>
+                        : adv === null ? "—"
+                        : `${(adv * 100).toFixed(0)}%`}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </TooltipProvider>
+  );
+}
+
