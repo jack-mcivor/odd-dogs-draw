@@ -40,6 +40,10 @@ interface PlayedMatch {
   goalsAway: number;
   isKnockout: boolean;
   stage: string;
+  homeEloBefore?: number;
+  awayEloBefore?: number;
+  homeExpected?: number;
+  awayExpected?: number;
 }
 
 function collectPlayedMatches(): PlayedMatch[] {
@@ -69,6 +73,18 @@ function goalDiffMultiplier(gd: number): number {
   return (11 + gd) / 8;
 }
 
+const STAGE_FACTOR: Record<string, number> = {
+  group: 1.0,
+  R32: 1.1,
+  R16: 1.2,
+  QF: 1.35,
+  SF: 1.45,
+  "3rd": 1.5,
+  Final: 1.5,
+};
+
+const UPSET_WEIGHT = 3;
+
 export function computeTeamPower(): TeamPower[] {
   // Step 1: seed Elo from startElo (or default for any team without a FIFA rank).
   const elo: Record<string, number> = {};
@@ -92,6 +108,13 @@ export function computeTeamPower(): TeamPower[] {
     const hA = aHost && !bHost ? HOST_BONUS : 0;
     const hB = bHost && !aHost ? HOST_BONUS : 0;
     const expectedA = 1 / (1 + Math.pow(10, ((eloB + hB) - (eloA + hA)) / 400));
+    const expectedB = 1 - expectedA;
+
+    // Record pre-match snapshots BEFORE applying the Elo update.
+    m.homeEloBefore = eloA;
+    m.awayEloBefore = eloB;
+    m.homeExpected = expectedA;
+    m.awayExpected = expectedB;
 
     // Knockout matches that ended level went to penalties — count as a draw
     // for Elo purposes, using the score at end of extra time.
@@ -109,7 +132,7 @@ export function computeTeamPower(): TeamPower[] {
     elo[m.away] = eloB + K * G * ((1 - actualA) - (1 - expectedA));
   }
 
-  // Step 3: build per-team stats + Power Index, weighting by opponent live Elo.
+  // Step 3: build per-team stats + Power Index using stored snapshots.
   const stats: Record<string, TeamPower> = {};
   for (const name of Object.keys(TEAMS)) {
     stats[name] = {
@@ -124,9 +147,20 @@ export function computeTeamPower(): TeamPower[] {
   }
 
   for (const m of played) {
-    const sides: Array<{ team: string; opp: string; gf: number; ga: number }> = [
-      { team: m.home, opp: m.away, gf: m.goalsHome, ga: m.goalsAway },
-      { team: m.away, opp: m.home, gf: m.goalsAway, ga: m.goalsHome },
+    const sides: Array<{
+      team: string; opp: string; gf: number; ga: number;
+      oppEloBefore: number; expected: number;
+    }> = [
+      {
+        team: m.home, opp: m.away, gf: m.goalsHome, ga: m.goalsAway,
+        oppEloBefore: m.awayEloBefore ?? DEFAULT_START_ELO,
+        expected: m.homeExpected ?? 0.5,
+      },
+      {
+        team: m.away, opp: m.home, gf: m.goalsAway, ga: m.goalsHome,
+        oppEloBefore: m.homeEloBefore ?? DEFAULT_START_ELO,
+        expected: m.awayExpected ?? 0.5,
+      },
     ];
     for (const s of sides) {
       const ts = stats[s.team];
@@ -138,19 +172,25 @@ export function computeTeamPower(): TeamPower[] {
       // Penalty-shootout knockouts count as draws for record purposes too.
       const isDraw = (m.isKnockout && m.goalsHome === m.goalsAway) || s.gf === s.ga;
       let resultPoints: number;
-      if (isDraw) { resultPoints = 1; ts.draws += 1; }
-      else if (s.gf > s.ga) { resultPoints = 3; ts.wins += 1; }
-      else { resultPoints = 0; ts.losses += 1; }
+      let actual: number;
+      if (isDraw) { resultPoints = 1; actual = 0.5; ts.draws += 1; }
+      else if (s.gf > s.ga) { resultPoints = 3; actual = 1; ts.wins += 1; }
+      else { resultPoints = 0; actual = 0; ts.losses += 1; }
 
       const rawMargin = s.gf - s.ga;
       const goalMargin = Math.max(-3, Math.min(3, rawMargin));
       const goalBonus = Math.sign(goalMargin) * Math.sqrt(Math.abs(goalMargin));
 
-      const oppLiveElo = elo[s.opp] ?? DEFAULT_START_ELO;
-      const oppStrength = Math.max(0, Math.min(1, (oppLiveElo - 1300) / 800));
+      const oppStrength = Math.max(0, Math.min(1, (s.oppEloBefore - 1300) / 800));
       const difficulty = 0.5 + oppStrength;
 
-      ts.powerIndex += (resultPoints + goalBonus) * difficulty;
+      const upsetBonus = UPSET_WEIGHT * (actual - s.expected);
+      const stageFactor = STAGE_FACTOR[m.stage] ?? 1.0;
+
+      const matchScore =
+        ((resultPoints + goalBonus) * difficulty + upsetBonus) * stageFactor;
+
+      ts.powerIndex += matchScore;
     }
   }
 
@@ -158,3 +198,4 @@ export function computeTeamPower(): TeamPower[] {
     b.powerIndex - a.powerIndex || b.liveElo - a.liveElo,
   );
 }
+
