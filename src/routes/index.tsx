@@ -1665,6 +1665,7 @@ function PowerIndexTab() {
     [getState(), useLiveState()], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [showMethod, setShowMethod] = useState(false);
   const { probs: simProbs, loading: simLoading } = useSimProbs();
 
   return (
