@@ -1774,6 +1774,9 @@ goalsA = Poisson(λA);  goalsB = Poisson(λB)`}</pre>
                 const sim = simProbs?.[r.team];
                 const advPct = eliminated ? null : sim ? sim.qualify : null;
                 const titlePct = eliminated ? null : sim ? sim.win : null;
+                const t = TEAMS[r.team];
+                const owner = teamOwner(r.team);
+                const teamColor = t?.teamColor ?? "#94a3b8";
                 const fmtPct = (p: number) => {
                   if (p >= 0.995) return "99%";
                   if (p >= 0.1) return `${(p * 100).toFixed(0)}%`;
@@ -1781,33 +1784,64 @@ goalsA = Poisson(λA);  goalsB = Poisson(λB)`}</pre>
                   if (p > 0) return "<1%";
                   return "0%";
                 };
+                // Adv %: green saturation/lightness scales with probability
+                const advColor = advPct === null
+                  ? undefined
+                  : `hsl(142 ${Math.round(advPct * 70)}% ${Math.round(75 - advPct * 30)}%)`;
                 return (
                   <Fragment key={r.team}>
                     <tr
-                      className={`border-b border-border/40 ${i === 0 ? "bg-primary/10" : ""} ${eliminated ? "opacity-50" : ""} ${hasBreakdown ? "cursor-pointer hover:bg-muted/40" : ""}`}
+                      className={`team-row border-b border-border/40 ${eliminated ? "opacity-50" : ""}`}
+                      style={{ ["--team-color" as string]: teamColor }}
                       onClick={() => hasBreakdown && setExpanded((p) => ({ ...p, [r.team]: !p[r.team] }))}
                     >
                       <td className="py-2 text-center text-muted-foreground">
                         {hasBreakdown ? (isOpen ? "▾" : "▸") : ""}
                       </td>
-                      <td className="py-2 pr-2 tabular-nums font-bold text-muted-foreground">{i + 1}</td>
-                      <td className="py-2 pr-2"><TeamChip team={r.team} showOwner /></td>
-                      <td className="py-2 pr-2 text-right tabular-nums font-black text-primary text-base">{Math.round(r.liveElo)}</td>
+                      <td className="py-2 pr-2 pl-3 tabular-nums font-bold text-muted-foreground">{i + 1}</td>
+                      <td className="py-2 pr-2">
+                        <Link
+                          to="/team/$team"
+                          params={{ team: r.team }}
+                          className="inline-flex items-center gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="text-sm leading-none opacity-60">{t?.flag ?? "🏳️"}</span>
+                          <span className="team-name font-semibold">{r.team}</span>
+                          {owner && <span className="text-xs text-muted-foreground/70">· {owner}</span>}
+                        </Link>
+                      </td>
+                      <td className="py-2 pr-2 text-right tabular-nums font-semibold text-foreground/90">{Math.round(r.liveElo)}</td>
                       <td className="py-2 pr-2 text-right tabular-nums text-muted-foreground">{r.powerIndex.toFixed(1)}</td>
                       <td className="py-2 pr-2 text-right tabular-nums">{r.played}</td>
                       <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">{r.wins}-{r.draws}-{r.losses}</td>
                       <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">{r.goalsFor}-{r.goalsAgainst}</td>
-                      <td className="py-2 pr-2 text-right tabular-nums text-xs">
+                      <td className="py-2 pr-2 text-right tabular-nums text-sm font-bold" style={advColor ? { color: advColor } : undefined}>
                         {eliminated ? <span className="text-destructive">OUT</span>
-                          : advPct === null ? "—"
+                          : advPct === null ? <span className="text-muted-foreground">—</span>
                           : fmtPct(advPct)}
                       </td>
-                      <td className="py-2 text-right tabular-nums text-xs font-bold text-primary">
+                      <td className="py-2 pr-2 text-right tabular-nums text-xs">
                         {eliminated ? <span className="text-destructive">—</span>
-                          : titlePct === null ? "—"
-                          : fmtPct(titlePct)}
+                          : titlePct === null ? <span className="text-muted-foreground">—</span>
+                          : (
+                            <div className="relative inline-block w-20 h-5 rounded-sm overflow-hidden bg-white/[0.04] border border-white/5">
+                              <div
+                                className="absolute inset-y-0 left-0 transition-all"
+                                style={{
+                                  width: `${Math.max(2, titlePct * 100)}%`,
+                                  background: "linear-gradient(90deg, #b8860b, #f5c542)",
+                                  boxShadow: titlePct > 0.05 ? "0 0 6px rgba(245,197,66,0.4)" : undefined,
+                                }}
+                              />
+                              <span className="relative z-10 inline-flex items-center justify-end w-full h-full pr-1.5 font-bold text-foreground mix-blend-luminosity">
+                                {fmtPct(titlePct)}
+                              </span>
+                            </div>
+                          )}
                       </td>
                     </tr>
+
                     {isOpen && hasBreakdown && (
                       <tr className="border-b border-border/40 bg-muted/20">
                         <td></td>
