@@ -206,7 +206,7 @@ function App() {
             <TabsTrigger value="players">Players</TabsTrigger>
             <TabsTrigger value="wildcards">Wildcards</TabsTrigger>
             <TabsTrigger value="bracket">Bracket</TabsTrigger>
-            <TabsTrigger value="power">Power Index</TabsTrigger>
+            <TabsTrigger value="power">Live Rankings</TabsTrigger>
           </TabsList>
           <TabsContent value="dashboard" className="mt-6"><Dashboard onSelectPlayer={goToPlayer} /></TabsContent>
           <TabsContent value="fixtures" className="mt-6"><Fixtures /></TabsContent>
