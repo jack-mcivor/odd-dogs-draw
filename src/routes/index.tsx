@@ -1688,9 +1688,67 @@ function PowerIndexTab() {
         <p className="text-xs text-muted-foreground">
           Live Elo seeded from FIFA rank (11 Jun 2026), replayed from every played match.
         </p>
-        <p className="text-[11px] text-muted-foreground mb-4 italic">
+        <p className="text-[11px] text-muted-foreground italic">
           Adv % and Title % from a 10 000-run Elo-driven Monte Carlo simulation. Updates after every result.{simLoading ? " · simulating…" : ""}
         </p>
+        <button
+          type="button"
+          onClick={() => setShowMethod((v) => !v)}
+          className="mt-2 mb-4 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+        >
+          <Info className="w-3 h-3" />
+          {showMethod ? "Hide odds methodology" : "Show odds methodology"}
+          <span className="text-muted-foreground">{showMethod ? "▾" : "▸"}</span>
+        </button>
+        {showMethod && (
+          <div className="mb-4 rounded-md border border-border/60 bg-secondary/30 p-3 text-[11px] leading-relaxed space-y-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-wide font-bold text-primary mb-1">Goal model (Poisson)</div>
+              <p className="text-muted-foreground">
+                For each simulated match we turn the Elo gap into an expected-goals (xG) pair, then sample independent Poisson scorelines:
+              </p>
+              <pre className="mt-1 text-[10px] font-mono bg-background/60 rounded p-2 overflow-x-auto whitespace-pre">{`supremacy = (eloA − eloB + hostAdjDiff) / 200
+λA = max(0.2, 1.35 + supremacy/2)
+λB = max(0.2, 1.35 − supremacy/2)
+goalsA = Poisson(λA);  goalsB = Poisson(λB)`}</pre>
+              <p className="text-muted-foreground mt-1">
+                1.35 is the baseline goals-per-team for an even matchup; the floor of 0.2 keeps every team a live underdog.
+              </p>
+            </div>
+
+            <div>
+              <div className="text-[10px] uppercase tracking-wide font-bold text-primary mb-1">Host adjustment (hostAdj)</div>
+              <p className="text-muted-foreground">
+                Tournament hosts <span className="font-semibold text-foreground">United States, Canada, and Mexico</span> get a fixed <span className="font-semibold text-foreground">+80 Elo</span> bonus that is applied <em>only</em> inside a match's expected-score calculation, never to the stored Elo. If both sides are hosts, the bonuses cancel; if neither is, it's zero. Same rule used by the live Elo updater.
+              </p>
+            </div>
+
+            <div>
+              <div className="text-[10px] uppercase tracking-wide font-bold text-primary mb-1">Tie-break logic</div>
+              <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
+                <li>
+                  <span className="text-foreground font-semibold">Group tables:</span> points → goal difference → goals for → higher live Elo. Top 2 from each group qualify directly.
+                </li>
+                <li>
+                  <span className="text-foreground font-semibold">Best-third ranking:</span> the 12 third-place teams are sorted by points → GD → GF → Elo, and the top 8 advance. They're slotted into the FIFA bracket's b3 clusters using the same greedy "first eligible third in cluster" rule the bracket page uses.
+                </li>
+                <li>
+                  <span className="text-foreground font-semibold">Knockout level after 90/extra-time:</span> a shootout is decided by an Elo-weighted coin flip:
+                  <pre className="mt-1 text-[10px] font-mono bg-background/60 rounded p-2 overflow-x-auto whitespace-pre">{`P(A wins) = 1 / (1 + 10^((eloB − eloA − hostAdj)/400))`}</pre>
+                </li>
+                <li>
+                  <span className="text-foreground font-semibold">Already-played matches:</span> real scorelines override the sim. Played knockouts whose slots are filled lock the winner in every run.
+                </li>
+              </ul>
+            </div>
+
+            <p className="text-[10px] text-muted-foreground/80">
+              Elo is held fixed at its current live value across all 10 000 runs — the simulation answers "given today's strengths, what's likely to happen?" rather than projecting future Elo movements.
+            </p>
+          </div>
+        )}
+
+
 
         <div className="overflow-x-auto -mx-5 px-5">
           <table className="w-full text-sm">
