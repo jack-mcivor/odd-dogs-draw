@@ -1651,6 +1651,32 @@ function nextMatchAdvancePct(team: string): number | null {
   return team === e.home ? adv : 1 - adv;
 }
 
+function useSimProbs(): { probs: Record<string, TeamSimProbs> | null; loading: boolean } {
+  const app = useAppState();
+  const live = useLiveState();
+  const [probs, setProbs] = useState<Record<string, TeamSimProbs> | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const t = setTimeout(() => {
+      // Defer to next frame so React paints the loading state first.
+      const id = (typeof requestIdleCallback === "function"
+        ? requestIdleCallback
+        : (cb: () => void) => setTimeout(cb, 0))(() => {
+        if (cancelled) return;
+        const next = simulateTournament();
+        if (cancelled) return;
+        setProbs(next);
+        setLoading(false);
+      });
+      void id;
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [app, live]);
+  return { probs, loading };
+}
+
 function PowerIndexTab() {
   useAppState();
   useLiveState();
@@ -1659,6 +1685,7 @@ function PowerIndexTab() {
     [getState(), useLiveState()], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const { probs: simProbs, loading: simLoading } = useSimProbs();
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -1677,8 +1704,11 @@ function PowerIndexTab() {
             </TooltipContent>
           </Tooltip>
         </div>
-        <p className="text-xs text-muted-foreground mb-4">
+        <p className="text-xs text-muted-foreground">
           Live Elo seeded from FIFA rank (11 Jun 2026), replayed from every played match.
+        </p>
+        <p className="text-[11px] text-muted-foreground mb-4 italic">
+          Adv % and Title % from a 10 000-run Elo-driven Monte Carlo simulation. Updates after every result.{simLoading ? " · simulating…" : ""}
         </p>
 
         <div className="overflow-x-auto -mx-5 px-5">
@@ -1693,15 +1723,25 @@ function PowerIndexTab() {
                 <th className="text-right font-bold py-2 pr-2">GP</th>
                 <th className="text-right font-bold py-2 pr-2">W-D-L</th>
                 <th className="text-right font-bold py-2 pr-2">GF-GA</th>
-                <th className="text-right font-bold py-2">Adv %</th>
+                <th className="text-right font-bold py-2 pr-2" title="Simulated chance of qualifying from the group (top 2 or best third)">Adv %</th>
+                <th className="text-right font-bold py-2" title="Simulated chance of winning the tournament">Title %</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r, i) => {
-                const adv = nextMatchAdvancePct(r.team);
                 const eliminated = isTeamEliminated(r.team);
                 const isOpen = !!expanded[r.team];
                 const hasBreakdown = r.breakdown.length > 0;
+                const sim = simProbs?.[r.team];
+                const advPct = eliminated ? null : sim ? sim.qualify : null;
+                const titlePct = eliminated ? null : sim ? sim.win : null;
+                const fmtPct = (p: number) => {
+                  if (p >= 0.995) return "99%";
+                  if (p >= 0.1) return `${(p * 100).toFixed(0)}%`;
+                  if (p >= 0.01) return `${(p * 100).toFixed(1)}%`;
+                  if (p > 0) return "<1%";
+                  return "0%";
+                };
                 return (
                   <Fragment key={r.team}>
                     <tr
@@ -1718,17 +1758,23 @@ function PowerIndexTab() {
                       <td className="py-2 pr-2 text-right tabular-nums">{r.played}</td>
                       <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">{r.wins}-{r.draws}-{r.losses}</td>
                       <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">{r.goalsFor}-{r.goalsAgainst}</td>
-                      <td className="py-2 text-right tabular-nums text-xs">
+                      <td className="py-2 pr-2 text-right tabular-nums text-xs">
                         {eliminated ? <span className="text-destructive">OUT</span>
-                          : adv === null ? "—"
-                          : `${(adv * 100).toFixed(0)}%`}
+                          : advPct === null ? "—"
+                          : fmtPct(advPct)}
+                      </td>
+                      <td className="py-2 text-right tabular-nums text-xs font-bold text-primary">
+                        {eliminated ? <span className="text-destructive">—</span>
+                          : titlePct === null ? "—"
+                          : fmtPct(titlePct)}
                       </td>
                     </tr>
                     {isOpen && hasBreakdown && (
                       <tr className="border-b border-border/40 bg-muted/20">
                         <td></td>
-                        <td colSpan={8} className="py-3 pr-2">
+                        <td colSpan={9} className="py-3 pr-2">
                           <div className="overflow-x-auto">
+
                             <table className="w-full text-xs">
                               <thead>
                                 <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
