@@ -174,12 +174,8 @@ function App() {
             </h1>
             <p className="text-xs text-muted-foreground">FIFA World Cup 2026 · USA · Canada · Mexico</p>
           </div>
-          <div
-            className="hidden min-[600px]:block flex-shrink-0 self-center overflow-hidden w-[90px] h-[50px] flex items-center justify-center"
-            style={{ contain: "layout paint" }}
-            aria-hidden="true"
-          >
-            <svg viewBox="0 0 360 175" width="90" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Footballer doing keepie-uppie drills" className="w-full h-full">
+          <div className="hidden min-[600px]:block flex-shrink-0 self-center" aria-hidden="true">
+            <svg viewBox="0 0 360 175" width="90" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Footballer doing keepie-uppie drills">
               <style>
                 {`svg { --kit:#75AADB; --skin:#e8b489; }
   .ball{ animation: toss 1.35s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 50%; }
