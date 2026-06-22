@@ -11,6 +11,7 @@ import {
   isTeamEliminated, loadFromStorage, nextUpcoming, recentResults, useAppState,
 } from "@/lib/wc-store";
 import { knockoutAdvanceProbability, priceMatch, teamElo } from "@/lib/wc-probability";
+import { computeTeamPower } from "@/lib/wc-power";
 import { MatchDetailProvider, useMatchDetail } from "@/components/MatchDetailModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,7 +22,11 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Trophy, Download, Flame, Calendar, RefreshCw } from "lucide-react";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Trophy, Download, Flame, Calendar, RefreshCw, Info, Zap } from "lucide-react";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -195,18 +200,21 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="w-full grid grid-cols-2 md:grid-cols-5 h-auto bg-card border border-border">
+          <TabsList className="w-full grid grid-cols-3 md:grid-cols-6 h-auto bg-card border border-border">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
             <TabsTrigger value="players">Players</TabsTrigger>
             <TabsTrigger value="wildcards">Wildcards</TabsTrigger>
             <TabsTrigger value="bracket">Bracket</TabsTrigger>
+            <TabsTrigger value="power">Power Index</TabsTrigger>
           </TabsList>
           <TabsContent value="dashboard" className="mt-6"><Dashboard onSelectPlayer={goToPlayer} /></TabsContent>
           <TabsContent value="fixtures" className="mt-6"><Fixtures /></TabsContent>
           <TabsContent value="players" className="mt-6"><PlayersTab focusPlayer={focusPlayer} onConsumeFocus={() => setFocusPlayer(null)} /></TabsContent>
           <TabsContent value="wildcards" className="mt-6"><WildcardsTab /></TabsContent>
           <TabsContent value="bracket" className="mt-6"><Bracket /></TabsContent>
+          <TabsContent value="power" className="mt-6"><PowerIndexTab /></TabsContent>
+
         </Tabs>
       </main>
       <footer className="text-center text-xs text-muted-foreground py-8 space-y-1">
