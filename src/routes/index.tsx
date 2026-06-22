@@ -1804,7 +1804,7 @@ goalsA = Poisson(λA);  goalsB = Poisson(λB)`}</pre>
                       style={{ ["--team-color" as string]: teamColor }}
                       onClick={() => hasBreakdown && setExpanded((p) => ({ ...p, [r.team]: !p[r.team] }))}
                     >
-                      <td className="py-2 text-center text-muted-foreground">
+                      <td className="relative py-2 text-center text-muted-foreground">
                         {hasBreakdown ? (isOpen ? "▾" : "▸") : ""}
                       </td>
                       <td className="py-2 pr-2 pl-3 tabular-nums font-bold text-muted-foreground">{i + 1}</td>
