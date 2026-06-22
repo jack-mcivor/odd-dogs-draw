@@ -8,6 +8,7 @@ export interface Team {
   pot: Pot;
   fifaRank?: number;
   startElo?: number;
+  teamColor: string;
 }
 
 
