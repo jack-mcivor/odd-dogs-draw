@@ -1760,19 +1760,19 @@ goalsA = Poisson(λA);  goalsB = Poisson(λB)`}</pre>
 
 
         <div className="overflow-x-auto -mx-5 px-5">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-fixed">
             <thead>
               <tr className="text-[10px] uppercase tracking-wide text-muted-foreground border-b border-border">
-                <th className="w-6 py-2"></th>
-                <th className="text-left font-bold py-2 pr-2">#</th>
+                <th className="w-8 py-2"></th>
+                <th className="w-12 text-left font-bold py-2 pr-2">#</th>
                 <th className="text-left font-bold py-2 pr-2">Team</th>
-                <th className="text-right font-bold py-2 pr-2">Elo</th>
-                <th className="text-right font-bold py-2 pr-2">Power</th>
-                <th className="text-right font-bold py-2 pr-2">GP</th>
-                <th className="text-right font-bold py-2 pr-2">W-D-L</th>
-                <th className="text-right font-bold py-2 pr-2">GF-GA</th>
-                <th className="text-right font-bold py-2 pr-2" title="Simulated chance of qualifying from the group (top 2 or best third)">Adv %</th>
-                <th className="text-right font-bold py-2" title="Simulated chance of winning the tournament">Title %</th>
+                <th className="w-16 text-right font-bold py-2 pr-2">Elo</th>
+                <th className="w-16 text-right font-bold py-2 pr-2">Power</th>
+                <th className="w-12 text-right font-bold py-2 pr-2">GP</th>
+                <th className="w-16 text-right font-bold py-2 pr-2">W-D-L</th>
+                <th className="w-20 text-right font-bold py-2 pr-2">GF-GA</th>
+                <th className="w-16 text-right font-bold py-2 pr-2" title="Simulated chance of qualifying from the group (top 2 or best third)">Adv %</th>
+                <th className="w-24 text-right font-bold py-2" title="Simulated chance of winning the tournament">Title %</th>
               </tr>
             </thead>
             <tbody>
