@@ -18,6 +18,20 @@ const STAGE_K: Record<string, number> = {
   Final: 75,
 };
 
+export interface PowerMatchBreakdown {
+  date: string;
+  opponent: string;
+  stage: string;
+  gf: number;
+  ga: number;
+  resultPoints: number;
+  goalBonus: number;
+  difficulty: number;
+  upsetBonus: number;
+  stageFactor: number;
+  matchScore: number;
+}
+
 export interface TeamPower {
   team: string;
   group: GroupLetter | undefined;
@@ -30,6 +44,7 @@ export interface TeamPower {
   goalsFor: number;
   goalsAgainst: number;
   powerIndex: number;
+  breakdown: PowerMatchBreakdown[];
 }
 
 interface PlayedMatch {
@@ -143,6 +158,7 @@ export function computeTeamPower(): TeamPower[] {
       played: 0, wins: 0, draws: 0, losses: 0,
       goalsFor: 0, goalsAgainst: 0,
       powerIndex: 0,
+      breakdown: [],
     };
   }
 
@@ -191,6 +207,19 @@ export function computeTeamPower(): TeamPower[] {
         ((resultPoints + goalBonus) * difficulty + upsetBonus) * stageFactor;
 
       ts.powerIndex += matchScore;
+      ts.breakdown.push({
+        date: m.date,
+        opponent: s.opp,
+        stage: m.stage,
+        gf: s.gf,
+        ga: s.ga,
+        resultPoints,
+        goalBonus,
+        difficulty,
+        upsetBonus,
+        stageFactor,
+        matchScore,
+      });
     }
   }
 

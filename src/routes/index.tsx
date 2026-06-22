@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { fetchAndApply, initApi, useApiMeta, WILDCARD_ASSIGNMENTS } from "@/lib/wc-api";
 import { initLive, useLiveMatch, useLiveState } from "@/lib/wc-live";
 import {
@@ -1657,6 +1657,7 @@ function PowerIndexTab() {
     () => [...computeTeamPower()].sort((a, b) => b.liveElo - a.liveElo || b.powerIndex - a.powerIndex),
     [getState(), useLiveState()], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -1683,6 +1684,7 @@ function PowerIndexTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[10px] uppercase tracking-wide text-muted-foreground border-b border-border">
+                <th className="w-6 py-2"></th>
                 <th className="text-left font-bold py-2 pr-2">#</th>
                 <th className="text-left font-bold py-2 pr-2">Team</th>
                 <th className="text-right font-bold py-2 pr-2">Elo</th>
@@ -1697,24 +1699,74 @@ function PowerIndexTab() {
               {rows.map((r, i) => {
                 const adv = nextMatchAdvancePct(r.team);
                 const eliminated = isTeamEliminated(r.team);
+                const isOpen = !!expanded[r.team];
+                const hasBreakdown = r.breakdown.length > 0;
                 return (
-                  <tr
-                    key={r.team}
-                    className={`border-b border-border/40 ${i === 0 ? "bg-primary/10" : ""} ${eliminated ? "opacity-50" : ""}`}
-                  >
-                    <td className="py-2 pr-2 tabular-nums font-bold text-muted-foreground">{i + 1}</td>
-                    <td className="py-2 pr-2"><TeamChip team={r.team} showOwner /></td>
-                    <td className="py-2 pr-2 text-right tabular-nums font-black text-primary text-base">{Math.round(r.liveElo)}</td>
-                    <td className="py-2 pr-2 text-right tabular-nums text-muted-foreground">{r.powerIndex.toFixed(1)}</td>
-                    <td className="py-2 pr-2 text-right tabular-nums">{r.played}</td>
-                    <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">{r.wins}-{r.draws}-{r.losses}</td>
-                    <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">{r.goalsFor}-{r.goalsAgainst}</td>
-                    <td className="py-2 text-right tabular-nums text-xs">
-                      {eliminated ? <span className="text-destructive">OUT</span>
-                        : adv === null ? "—"
-                        : `${(adv * 100).toFixed(0)}%`}
-                    </td>
-                  </tr>
+                  <Fragment key={r.team}>
+                    <tr
+                      className={`border-b border-border/40 ${i === 0 ? "bg-primary/10" : ""} ${eliminated ? "opacity-50" : ""} ${hasBreakdown ? "cursor-pointer hover:bg-muted/40" : ""}`}
+                      onClick={() => hasBreakdown && setExpanded((p) => ({ ...p, [r.team]: !p[r.team] }))}
+                    >
+                      <td className="py-2 text-center text-muted-foreground">
+                        {hasBreakdown ? (isOpen ? "▾" : "▸") : ""}
+                      </td>
+                      <td className="py-2 pr-2 tabular-nums font-bold text-muted-foreground">{i + 1}</td>
+                      <td className="py-2 pr-2"><TeamChip team={r.team} showOwner /></td>
+                      <td className="py-2 pr-2 text-right tabular-nums font-black text-primary text-base">{Math.round(r.liveElo)}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums text-muted-foreground">{r.powerIndex.toFixed(1)}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums">{r.played}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">{r.wins}-{r.draws}-{r.losses}</td>
+                      <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">{r.goalsFor}-{r.goalsAgainst}</td>
+                      <td className="py-2 text-right tabular-nums text-xs">
+                        {eliminated ? <span className="text-destructive">OUT</span>
+                          : adv === null ? "—"
+                          : `${(adv * 100).toFixed(0)}%`}
+                      </td>
+                    </tr>
+                    {isOpen && hasBreakdown && (
+                      <tr className="border-b border-border/40 bg-muted/20">
+                        <td></td>
+                        <td colSpan={8} className="py-3 pr-2">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                  <th className="text-left font-bold py-1 pr-2">Opponent</th>
+                                  <th className="text-left font-bold py-1 pr-2">Stage</th>
+                                  <th className="text-right font-bold py-1 pr-2">Score</th>
+                                  <th className="text-right font-bold py-1 pr-2">Result pts</th>
+                                  <th className="text-right font-bold py-1 pr-2">Goal bonus</th>
+                                  <th className="text-right font-bold py-1 pr-2">Difficulty</th>
+                                  <th className="text-right font-bold py-1 pr-2">Upset bonus</th>
+                                  <th className="text-right font-bold py-1 pr-2">Stage ×</th>
+                                  <th className="text-right font-bold py-1">Match score</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {r.breakdown.map((b, idx) => (
+                                  <tr key={idx} className="border-t border-border/30">
+                                    <td className="py-1 pr-2"><TeamChip team={b.opponent} /></td>
+                                    <td className="py-1 pr-2 text-muted-foreground">{b.stage}</td>
+                                    <td className="py-1 pr-2 text-right tabular-nums whitespace-nowrap">{b.gf}-{b.ga}</td>
+                                    <td className="py-1 pr-2 text-right tabular-nums">{b.resultPoints}</td>
+                                    <td className="py-1 pr-2 text-right tabular-nums">{b.goalBonus >= 0 ? "+" : ""}{b.goalBonus.toFixed(2)}</td>
+                                    <td className="py-1 pr-2 text-right tabular-nums">{b.difficulty.toFixed(2)}</td>
+                                    <td className="py-1 pr-2 text-right tabular-nums">{b.upsetBonus >= 0 ? "+" : ""}{b.upsetBonus.toFixed(2)}</td>
+                                    <td className="py-1 pr-2 text-right tabular-nums">{b.stageFactor.toFixed(2)}</td>
+                                    <td className="py-1 text-right tabular-nums font-bold">{b.matchScore.toFixed(2)}</td>
+                                  </tr>
+                                ))}
+                                <tr className="border-t border-border/60">
+                                  <td colSpan={8} className="py-1 pr-2 text-right text-muted-foreground uppercase text-[10px] tracking-wide font-bold">Total Power Index</td>
+                                  <td className="py-1 text-right tabular-nums font-black text-primary">{r.powerIndex.toFixed(1)}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
