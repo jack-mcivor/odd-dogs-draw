@@ -175,51 +175,13 @@ function App() {
             <p className="text-xs text-muted-foreground">FIFA World Cup 2026 · USA · Canada · Mexico</p>
           </div>
           <div className="hidden min-[600px]:block flex-shrink-0 self-center" aria-hidden="true">
-            <svg viewBox="0 0 360 175" width="90" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Footballer doing keepie-uppie drills">
-              <style>
-                {`svg { --kit:#75AADB; --skin:#e8b489; }
-  .ball{ animation: toss 1.35s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 50%; }
-  .kleg{ animation: tap 1.35s ease-in-out infinite; transform-box: fill-box; transform-origin: 0% 0%; }
-  .bob{ animation: bob 1.35s ease-in-out infinite; }
-  .armL{ animation: sway 1.35s ease-in-out infinite; transform-box: fill-box; transform-origin: 0% 100%; }
-  .shadow{ animation: shp 1.35s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 50%; }
-  @keyframes toss{0%,100%{transform:translateY(0)}50%{transform:translateY(-60px)}}
-  @keyframes tap{0%,100%{transform:rotate(-15deg)}50%{transform:rotate(6deg)}}
-  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-  @keyframes sway{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-10deg)}}
-  @keyframes shp{0%,100%{transform:scaleX(1);opacity:.30}50%{transform:scaleX(.88);opacity:.20}}
-  @media (prefers-reduced-motion: reduce){ .ball,.kleg,.bob,.armL,.shadow{animation:none} }`}
-              </style>
-              <defs><clipPath id="torsoClip"><rect x="183" y="74" width="34" height="42" rx="9"/></clipPath></defs>
-              <ellipse className="shadow" cx="200" cy="164" rx="40" ry="5" fill="#000"/>
-              <path d="M195,122 L190,158" fill="none" stroke="var(--skin)" stroke-width="8" stroke-linecap="round"/>
-              <path d="M191,149 L189,159" fill="none" stroke="var(--kit)" stroke-width="8" stroke-linecap="round"/>
-              <path d="M179,160 q0,-4 6,-4 l6,0 q4,0 3,4 q-1,2 -4,2 l-8,0 q-3,0 -3,-2 z" fill="#15171c"/>
-              <g className="kleg">
-                <path d="M206,122 L221,139 L227,150" fill="none" stroke="var(--skin)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M223,146 L228,151" fill="none" stroke="var(--kit)" stroke-width="8" stroke-linecap="round"/>
-                <path d="M225,153 q4,-4 10,-1 q3,2 1,5 q-2,2 -5,1 l-6,-2 q-3,-1 -1,-3 z" fill="#15171c"/>
-              </g>
-              <g className="bob">
-                <path d="M186,82 L176,104" fill="none" stroke="var(--skin)" stroke-width="7" stroke-linecap="round"/>
-                <rect x="183" y="74" width="34" height="42" rx="9" fill="var(--kit)"/>
-                <g clip-path="url(#torsoClip)">
-                  <rect x="186" y="74" width="5" height="42" fill="#fff" opacity=".95"/>
-                  <rect x="197" y="74" width="5" height="42" fill="#fff" opacity=".95"/>
-                  <rect x="208" y="74" width="5" height="42" fill="#fff" opacity=".95"/>
-                </g>
-                <rect x="184" y="110" width="32" height="16" rx="4" fill="#11203f"/>
-                <g className="armL"><path d="M214,82 L233,68" fill="none" stroke="var(--skin)" stroke-width="7" stroke-linecap="round"/></g>
-                <rect x="196" y="66" width="8" height="10" fill="var(--skin)"/>
-                <circle cx="200" cy="58" r="13" fill="var(--skin)"/>
-                <path d="M188,57 a12,12 0 0,1 24,0 c-2,-8 -22,-8 -24,0 z" fill="#241c16"/>
-              </g>
-              <g className="ball">
-                <circle cx="234" cy="150" r="10" fill="#fff" stroke="#15171c" stroke-width="1.2"/>
-                <path d="M234,144 l5.2,3.8 -2,6.1 -6.4,0 -2,-6.1 z" fill="#15171c"/>
-                <path d="M234,140.5 v3.5 M226.8,148.6 l3.6,1.1 M241.2,148.6 l-3.6,1.1 M230.6,156.4 l1.5,-2.9 M237.4,156.4 l-1.5,-2.9" stroke="#15171c" stroke-width="1.1" stroke-linecap="round"/>
-              </g>
-            </svg>
+            <img
+              src="/footballer.svg"
+              width="90"
+              height="44"
+              alt="Footballer doing keepie-uppie drills"
+              className="block"
+            />
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold">
