@@ -1653,7 +1653,10 @@ function nextMatchAdvancePct(team: string): number | null {
 function PowerIndexTab() {
   useAppState();
   useLiveState();
-  const rows = useMemo(() => computeTeamPower(), [getState(), useLiveState()]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useMemo(
+    () => [...computeTeamPower()].sort((a, b) => b.liveElo - a.liveElo || b.powerIndex - a.powerIndex),
+    [getState(), useLiveState()], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -1667,8 +1670,8 @@ function PowerIndexTab() {
                 <Info className="w-4 h-4" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[260px] text-center">
-              A live rating that rewards goals scored against stronger opponents. Updates after every match.
+            <TooltipContent side="bottom" className="max-w-[280px] text-center">
+              A live strength rating. Each team starts from its FIFA ranking and rises or falls after every match based on the result, the goal margin, and how strong the opponent was.
             </TooltipContent>
           </Tooltip>
         </div>
@@ -1682,11 +1685,11 @@ function PowerIndexTab() {
               <tr className="text-[10px] uppercase tracking-wide text-muted-foreground border-b border-border">
                 <th className="text-left font-bold py-2 pr-2">#</th>
                 <th className="text-left font-bold py-2 pr-2">Team</th>
-                <th className="text-left font-bold py-2 pr-2">Grp</th>
-                <th className="text-right font-bold py-2 pr-2">Power</th>
                 <th className="text-right font-bold py-2 pr-2">Elo</th>
-                <th className="text-right font-bold py-2 pr-2">GF</th>
-                <th className="text-right font-bold py-2 pr-2">GA</th>
+                <th className="text-right font-bold py-2 pr-2">Power</th>
+                <th className="text-right font-bold py-2 pr-2">GP</th>
+                <th className="text-right font-bold py-2 pr-2">W-D-L</th>
+                <th className="text-right font-bold py-2 pr-2">GF-GA</th>
                 <th className="text-right font-bold py-2">Adv %</th>
               </tr>
             </thead>
@@ -1701,11 +1704,11 @@ function PowerIndexTab() {
                   >
                     <td className="py-2 pr-2 tabular-nums font-bold text-muted-foreground">{i + 1}</td>
                     <td className="py-2 pr-2"><TeamChip team={r.team} showOwner /></td>
-                    <td className="py-2 pr-2 text-xs text-muted-foreground">{r.group ?? "—"}</td>
-                    <td className="py-2 pr-2 text-right tabular-nums font-black text-primary">{r.powerIndex.toFixed(1)}</td>
-                    <td className="py-2 pr-2 text-right tabular-nums">{Math.round(r.liveElo)}</td>
-                    <td className="py-2 pr-2 text-right tabular-nums">{r.goalsFor}</td>
-                    <td className="py-2 pr-2 text-right tabular-nums">{r.goalsAgainst}</td>
+                    <td className="py-2 pr-2 text-right tabular-nums font-black text-primary text-base">{Math.round(r.liveElo)}</td>
+                    <td className="py-2 pr-2 text-right tabular-nums text-muted-foreground">{r.powerIndex.toFixed(1)}</td>
+                    <td className="py-2 pr-2 text-right tabular-nums">{r.played}</td>
+                    <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">{r.wins}-{r.draws}-{r.losses}</td>
+                    <td className="py-2 pr-2 text-right tabular-nums whitespace-nowrap">{r.goalsFor}-{r.goalsAgainst}</td>
                     <td className="py-2 text-right tabular-nums text-xs">
                       {eliminated ? <span className="text-destructive">OUT</span>
                         : adv === null ? "—"
