@@ -160,6 +160,99 @@ interface GroupRunStats {
   elo: number;
 }
 
+interface GroupMatchResult {
+  home: string;
+  away: string;
+  hs: number;
+  as: number;
+}
+
+// FIFA 2026 group tiebreak ladder:
+// 1) pts  2) H2H pts  3) H2H GD  4) H2H GF (recursive on still-tied subset)
+// fallback: 5) overall GD  6) overall GF  7) Elo
+function rankGroupTeams(
+  teams: string[],
+  stats: Record<string, GroupRunStats>,
+  results: GroupMatchResult[],
+): GroupRunStats[] {
+  const buckets = rankBucketsByPoints(teams, stats, results);
+  const out: GroupRunStats[] = [];
+  for (const bk of buckets) for (const t of bk) out.push(stats[t]);
+  return out;
+}
+
+function rankBucketsByPoints(
+  teams: string[],
+  stats: Record<string, GroupRunStats>,
+  results: GroupMatchResult[],
+): string[][] {
+  if (teams.length <= 1) return teams.length ? [teams] : [];
+  const sorted = [...teams].sort((a, b) => stats[b].pts - stats[a].pts);
+  const out: string[][] = [];
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i + 1;
+    while (j < sorted.length && stats[sorted[i]].pts === stats[sorted[j]].pts) j++;
+    const tied = sorted.slice(i, j);
+    if (tied.length === 1) out.push(tied);
+    else out.push(...resolveH2H(tied, stats, results));
+    i = j;
+  }
+  return out;
+}
+
+function resolveH2H(
+  tied: string[],
+  stats: Record<string, GroupRunStats>,
+  results: GroupMatchResult[],
+): string[][] {
+  const h: Record<string, { pts: number; gf: number; ga: number }> = {};
+  tied.forEach((t) => (h[t] = { pts: 0, gf: 0, ga: 0 }));
+  const set = new Set(tied);
+  for (const r of results) {
+    if (!set.has(r.home) || !set.has(r.away)) continue;
+    h[r.home].gf += r.hs; h[r.home].ga += r.as;
+    h[r.away].gf += r.as; h[r.away].ga += r.hs;
+    if (r.hs > r.as) h[r.home].pts += 3;
+    else if (r.hs < r.as) h[r.away].pts += 3;
+    else { h[r.home].pts++; h[r.away].pts++; }
+  }
+  const cmp = (a: string, b: string) =>
+    h[b].pts - h[a].pts ||
+    (h[b].gf - h[b].ga) - (h[a].gf - h[a].ga) ||
+    h[b].gf - h[a].gf;
+  const sorted = [...tied].sort(cmp);
+  const out: string[][] = [];
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i + 1;
+    while (j < sorted.length && cmp(sorted[i], sorted[j]) === 0) j++;
+    const sub = sorted.slice(i, j);
+    if (sub.length === 1) out.push(sub);
+    else if (sub.length === tied.length) out.push(...resolveOverall(sub, stats));
+    else out.push(...rankBucketsByPoints(sub, stats, results));
+    i = j;
+  }
+  return out;
+}
+
+function resolveOverall(teams: string[], stats: Record<string, GroupRunStats>): string[][] {
+  const cmp = (a: string, b: string) =>
+    (stats[b].gf - stats[b].ga) - (stats[a].gf - stats[a].ga) ||
+    stats[b].gf - stats[a].gf ||
+    stats[b].elo - stats[a].elo;
+  const sorted = [...teams].sort(cmp);
+  const out: string[][] = [];
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i + 1;
+    while (j < sorted.length && cmp(sorted[i], sorted[j]) === 0) j++;
+    out.push(sorted.slice(i, j));
+    i = j;
+  }
+  return out;
+}
+
 function runGroups(inputs: SimInputs): {
   qualifiersByGroup: Record<GroupLetter, [string, string]>; // [1st, 2nd]
   thirds: Array<GroupRunStats & { group: GroupLetter }>;
@@ -171,6 +264,7 @@ function runGroups(inputs: SimInputs): {
     for (const t of GROUPS[g]) {
       teamStats[t] = { team: t, pts: 0, gf: 0, ga: 0, elo: inputs.elo[t] ?? 1500 };
     }
+    const results: GroupMatchResult[] = [];
     for (const pm of inputs.groupMatches[g]) {
       let h: number, a: number;
       if (pm.played) {
@@ -186,20 +280,13 @@ function runGroups(inputs: SimInputs): {
       if (h > a) teamStats[pm.home].pts += 3;
       else if (a > h) teamStats[pm.away].pts += 3;
       else { teamStats[pm.home].pts++; teamStats[pm.away].pts++; }
+      results.push({ home: pm.home, away: pm.away, hs: h, as: a });
     }
-    const sorted = Object.values(teamStats).sort(cmpGroup);
+    const sorted = rankGroupTeams(GROUPS[g] as unknown as string[], teamStats, results);
     qualifiersByGroup[g] = [sorted[0].team, sorted[1].team];
     thirds.push({ ...sorted[2], group: g });
   }
   return { qualifiersByGroup, thirds };
-}
-
-function cmpGroup(a: GroupRunStats, b: GroupRunStats): number {
-  if (b.pts !== a.pts) return b.pts - a.pts;
-  const gdA = a.gf - a.ga, gdB = b.gf - b.ga;
-  if (gdB !== gdA) return gdB - gdA;
-  if (b.gf !== a.gf) return b.gf - a.gf;
-  return b.elo - a.elo;
 }
 
 // ---------- bracket slotting ----------
