@@ -1760,12 +1760,12 @@ goalsA = Poisson(λA);  goalsB = Poisson(λB)`}</pre>
 
 
         <div className="overflow-x-auto -mx-5 px-5">
-          <table className="w-full text-sm table-fixed">
+          <table className="text-sm table-fixed" style={{ width: "100%", minWidth: 760 }}>
             <thead>
               <tr className="text-[10px] uppercase tracking-wide text-muted-foreground border-b border-border">
-                <th className="w-8 py-2"></th>
-                <th className="w-12 text-left font-bold py-2 pr-2">#</th>
-                <th className="text-left font-bold py-2 pr-2">Team</th>
+                <th className="py-2" style={{ width: 32 }}></th>
+                <th className="text-left font-bold py-2 pr-2" style={{ width: 40 }}>#</th>
+                <th className="text-left font-bold py-2 pr-2" style={{ width: 200 }}>Team</th>
                 <th className="w-16 text-right font-bold py-2 pr-2">Elo</th>
                 <th className="w-16 text-right font-bold py-2 pr-2">Power</th>
                 <th className="w-12 text-right font-bold py-2 pr-2">GP</th>
