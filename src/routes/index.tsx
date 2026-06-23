@@ -222,12 +222,13 @@ function App() {
             <TabsTrigger value="players">Players</TabsTrigger>
             <TabsTrigger value="wildcards">Wildcards</TabsTrigger>
             <TabsTrigger value="bracket">Bracket</TabsTrigger>
-            <TabsTrigger value="power" className="gap-1 whitespace-nowrap px-1 py-1 text-center text-xs leading-tight sm:gap-0 sm:px-3 sm:text-sm">
-              <span className="hidden sm:inline">Live Rankings</span>
-              <span className="sm:hidden">Rankings</span>
-              <span className="inline-flex items-center rounded-full border border-purple-400/30 bg-purple-500/20 px-1 py-0.5 text-[8px] font-black leading-none tracking-wide text-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.5)] sm:ml-1 sm:px-1.5 sm:text-[10px]">
-                <span className="hidden sm:inline">&amp; Oracle Game</span>
-                <span className="sm:hidden">Oracle</span>
+            <TabsTrigger value="power" className="gap-1 whitespace-nowrap px-1 py-1 text-center text-xs sm:gap-0 sm:px-2 sm:text-sm md:px-3">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                <span className="hidden md:inline">Live Rankings</span>
+                <span className="md:hidden">Ranks</span>
+                <span className="inline-flex items-center rounded-full border border-purple-400/30 bg-purple-500/20 px-1 py-0.5 text-[8px] font-black leading-none tracking-wide text-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.5)] sm:px-1.5 sm:text-[10px]">
+                  O-Game
+                </span>
               </span>
             </TabsTrigger>
           </TabsList>
