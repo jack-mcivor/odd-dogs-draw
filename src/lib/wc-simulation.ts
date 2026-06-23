@@ -367,7 +367,9 @@ function simKnockoutPair(
   const ov = inputs.knockoutOverrides[matchId];
   if (ov && ov.home === a && ov.away === b) return ov.winnerHome ? a : b;
   if (ov && ov.home === b && ov.away === a) return ov.winnerHome ? b : a;
-  const r = simMatch(a, b, inputs.elo, true);
+  const venue = inputs.knockoutVenues[matchId] ?? "";
+  const d = computeContextDelta(a, b, venue, inputs.ctxState).total;
+  const r = simMatch(a, b, inputs.elo, true, d);
   return r.winnerA ? a : b;
 }
 
