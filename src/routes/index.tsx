@@ -222,9 +222,9 @@ function App() {
             <TabsTrigger value="players">Players</TabsTrigger>
             <TabsTrigger value="wildcards">Wildcards</TabsTrigger>
             <TabsTrigger value="bracket">Bracket</TabsTrigger>
-            <TabsTrigger value="power">
-              Live Rankings
-              <span className="ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-black tracking-wide bg-purple-500/20 text-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.5)] border border-purple-400/30">
+            <TabsTrigger value="power" className="flex-col gap-0.5 whitespace-normal px-1 py-1 text-center leading-tight sm:flex-row sm:gap-0 sm:whitespace-nowrap sm:px-3">
+              <span>Live Rankings</span>
+              <span className="inline-flex items-center rounded-full border border-purple-400/30 bg-purple-500/20 px-1 py-0.5 text-[8px] font-black leading-none tracking-wide text-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.5)] sm:ml-1 sm:px-1.5 sm:text-[10px]">
                 &amp; Oracle Game
               </span>
             </TabsTrigger>
