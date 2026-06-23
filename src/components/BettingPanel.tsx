@@ -207,12 +207,11 @@ function BetSlip({
         />
         <Button
           size="sm"
-          variant="secondary"
           disabled={!resultPick || busy || stake < MIN_STAKE || stake > balance}
           onClick={submitResult}
-          className="h-7 text-[11px] px-2"
+          className="h-8 text-[11px] px-3 font-bold uppercase tracking-wide bg-fuchsia-500 hover:bg-fuchsia-400 text-white shadow-[0_0_12px_rgba(217,70,239,0.6)] hover:shadow-[0_0_18px_rgba(217,70,239,0.9)] border border-fuchsia-300/50"
         >
-          Bet {resultOdds > 0 ? `→ ${fmtCoins(stake * resultOdds)}` : ""}
+          💰 Place Bet {resultOdds > 0 ? `→ ${fmtCoins(stake * resultOdds)}` : ""}
         </Button>
       </div>
       {/* Score */}
