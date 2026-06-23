@@ -1636,6 +1636,7 @@ function ProjectedSlotRow({ slot }: { slot: ProjectedSlot }) {
       )}
     </div>
   );
+}
 
 
 function MatchContextEditor() {
