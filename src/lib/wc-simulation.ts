@@ -105,6 +105,7 @@ interface PreparedGroupMatch {
   home: string;
   away: string;
   played?: { h: number; a: number };
+  ctxDelta: number;  // precomputed from snapshot (constant across runs)
 }
 
 interface PreparedKnockoutOverride {
@@ -124,6 +125,10 @@ interface SimInputs {
   groupMatches: Record<GroupLetter, PreparedGroupMatch[]>;
   // matchId -> override (only when both slots filled AND score recorded)
   knockoutOverrides: Record<string, { home: string; away: string; winnerHome: boolean }>;
+  // matchId -> venue (stadium name) for every knockout slot
+  knockoutVenues: Record<string, string>;
+  // Snapshot of context state — used to compute per-pair deltas in knockouts
+  ctxState: ContextState;
   teams: string[];
 }
 
@@ -133,19 +138,25 @@ function prepareInputs(): SimInputs {
   for (const p of power) elo[p.team] = p.liveElo;
   for (const t of Object.keys(TEAMS)) if (elo[t] === undefined) elo[t] = 1500;
 
+  const ctxState = getContextState();
+
   const groupMatches = {} as Record<GroupLetter, PreparedGroupMatch[]>;
   for (const g of GROUP_LETTERS) groupMatches[g] = [];
   for (const m of GROUP_MATCHES) {
     const score = effectiveScore(m.id);
+    const d = computeContextDelta(m.home, m.away, m.venue, ctxState).total;
     groupMatches[m.group!].push({
       m, home: m.home, away: m.away,
       played: score ? { h: score.home, a: score.away } : undefined,
+      ctxDelta: d,
     });
   }
 
   const knockoutOverrides: Record<string, { home: string; away: string; winnerHome: boolean }> = {};
+  const knockoutVenues: Record<string, string> = {};
   const slots = getState().knockoutSlots;
   for (const m of KNOCKOUT_MATCHES) {
+    knockoutVenues[m.id] = m.venue;
     const ko = slots[m.id];
     if (!ko?.home || !ko?.away) continue;
     const score = effectiveScore(m.id);
@@ -156,7 +167,7 @@ function prepareInputs(): SimInputs {
     };
   }
 
-  return { elo, groupMatches, knockoutOverrides, teams: Object.keys(TEAMS) };
+  return { elo, groupMatches, knockoutOverrides, knockoutVenues, ctxState, teams: Object.keys(TEAMS) };
 }
 
 // ---------- per-run group simulation ----------
