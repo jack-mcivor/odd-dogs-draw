@@ -5,8 +5,6 @@ import { computeTeamPower } from "@/lib/wc-power";
 import { PLAYERS as OWNERS, TEAMS, ALL_MATCHES } from "@/lib/wc-data";
 import {
   predictForFixture,
-  hostAdj,
-  predict,
   MAX_GOALS,
 } from "./PredictionBoard";
 import {
