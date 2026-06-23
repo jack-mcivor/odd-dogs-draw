@@ -207,12 +207,11 @@ function BetSlip({
         />
         <Button
           size="sm"
-          variant="secondary"
           disabled={!resultPick || busy || stake < MIN_STAKE || stake > balance}
           onClick={submitResult}
-          className="h-7 text-[11px] px-2"
+          className="h-8 text-[11px] px-3 font-bold uppercase tracking-wide bg-fuchsia-500 hover:bg-fuchsia-400 text-white shadow-[0_0_12px_rgba(217,70,239,0.6)] hover:shadow-[0_0_18px_rgba(217,70,239,0.9)] border border-fuchsia-300/50"
         >
-          Bet {resultOdds > 0 ? `→ ${fmtCoins(stake * resultOdds)}` : ""}
+          💰 Place Bet {resultOdds > 0 ? `→ ${fmtCoins(stake * resultOdds)}` : ""}
         </Button>
       </div>
       {/* Score */}
@@ -250,12 +249,11 @@ function BetSlip({
         />
         <Button
           size="sm"
-          variant="secondary"
           disabled={busy || scoreStake < MIN_STAKE || scoreStake > balance}
           onClick={submitScore}
-          className="h-7 text-[11px] px-2"
+          className="h-8 text-[11px] px-3 font-bold uppercase tracking-wide bg-fuchsia-500 hover:bg-fuchsia-400 text-white shadow-[0_0_12px_rgba(217,70,239,0.6)] hover:shadow-[0_0_18px_rgba(217,70,239,0.9)] border border-fuchsia-300/50"
         >
-          Bet → {fmtCoins(scoreStake * scoreOdds)}
+          💰 Place Bet → {fmtCoins(scoreStake * scoreOdds)}
         </Button>
       </div>
     </div>
@@ -340,7 +338,6 @@ function Leaderboard({ currentName }: { currentName: string | null }) {
                   <td className="py-1 font-mono">{i + 1}</td>
                   <td className="py-1 font-semibold">
                     {p.name}
-                    {i === 0 && <span className="ml-1.5 text-[10px]">🏆 Oracle Slayer</span>}
                     {p.is_guest && <span className="ml-1.5 text-[10px] text-muted-foreground">(guest)</span>}
                   </td>
                   <td className="py-1 text-right font-mono tabular-nums">{fmtCoins(p.balance)}</td>
