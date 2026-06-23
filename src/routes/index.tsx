@@ -18,6 +18,7 @@ import {
   setTeamContext, setVenueContext, resetAllContext,
 } from "@/lib/wc-context";
 import { MatchDetailProvider, useMatchDetail } from "@/components/MatchDetailModal";
+import { PredictionBoard } from "@/components/PredictionBoard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1941,6 +1942,9 @@ goalsA = Poisson(λA);  goalsB = Poisson(λB)`}</pre>
 
 
         <MatchContextEditor />
+
+        <PredictionBoard />
+
 
         <div className="overflow-x-auto -mx-5 px-5">
           <table className="text-sm table-fixed" style={{ width: "100%", minWidth: 760 }}>

@@ -158,3 +158,22 @@
   text-shadow: 0 0 8px var(--team-color), 0 0 16px var(--team-color);
 }
 
+/* Prediction Board — contained glow (box-shadow only, no layout shift) */
+@keyframes oracle-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 14px rgba(34, 211, 238, 0.22),
+      inset 0 0 18px rgba(34, 211, 238, 0.06);
+  }
+  50% {
+    box-shadow:
+      0 0 28px rgba(34, 211, 238, 0.55),
+      inset 0 0 24px rgba(34, 211, 238, 0.14);
+  }
+}
+.prediction-board {
+  animation: oracle-glow 2.5s ease-in-out infinite;
+  will-change: box-shadow;
+}
+
+
