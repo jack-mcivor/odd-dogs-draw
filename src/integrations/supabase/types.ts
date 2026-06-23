@@ -14,7 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bets: {
+        Row: {
+          bet_type: string
+          fixture_id: string
+          id: string
+          locked_odds: number
+          payout: number
+          placed_at: string
+          player_name: string
+          selection: string
+          settled_at: string | null
+          stake: number
+          status: string
+        }
+        Insert: {
+          bet_type: string
+          fixture_id: string
+          id?: string
+          locked_odds: number
+          payout?: number
+          placed_at?: string
+          player_name: string
+          selection: string
+          settled_at?: string | null
+          stake: number
+          status?: string
+        }
+        Update: {
+          bet_type?: string
+          fixture_id?: string
+          id?: string
+          locked_odds?: number
+          payout?: number
+          placed_at?: string
+          player_name?: string
+          selection?: string
+          settled_at?: string | null
+          stake?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bets_player_name_fkey"
+            columns: ["player_name"]
+            isOneToOne: false
+            referencedRelation: "betting_players"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
+      betting_players: {
+        Row: {
+          balance: number
+          best_win: number
+          created_at: string
+          is_guest: boolean
+          name: string
+        }
+        Insert: {
+          balance?: number
+          best_win?: number
+          created_at?: string
+          is_guest?: boolean
+          name: string
+        }
+        Update: {
+          balance?: number
+          best_win?: number
+          created_at?: string
+          is_guest?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
