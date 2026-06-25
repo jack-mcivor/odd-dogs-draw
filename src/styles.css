@@ -188,3 +188,61 @@
 }
 
 
+
+/* Leader-row bulb frame — blinking lightbulbs around #1 on the leaderboard. */
+@keyframes leader-bulb-blink {
+  0%, 100% { opacity: 1;   filter: drop-shadow(0 0 4px #ffd84d); }
+  50%      { opacity: 0.25; filter: drop-shadow(0 0 1px #7a560f); }
+}
+@keyframes leader-bulb-blink-alt {
+  0%, 100% { opacity: 0.25; filter: drop-shadow(0 0 1px #7a560f); }
+  50%      { opacity: 1;    filter: drop-shadow(0 0 4px #ffd84d); }
+}
+.leader-row > td {
+  position: relative;
+  background: linear-gradient(rgba(255, 216, 77, 0.07), rgba(255, 216, 77, 0.07));
+}
+.leader-row > td::before,
+.leader-row > td::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  pointer-events: none;
+  background-image: radial-gradient(circle 2.5px at 50% 50%,
+    #fff6b8 0%, #ffd84d 45%, rgba(255, 216, 77, 0) 70%);
+  background-size: 12px 6px;
+  background-repeat: repeat-x;
+  background-position: center;
+  animation: leader-bulb-blink 0.9s ease-in-out infinite;
+}
+.leader-row > td::before { top: -3px; }
+.leader-row > td::after  { bottom: -3px; animation-name: leader-bulb-blink-alt; }
+
+/* Side bulbs on the outermost cells */
+.leader-row > td:first-child {
+  box-shadow: inset 8px 0 0 -5px transparent;
+}
+.leader-row > td:first-child > .leader-side,
+.leader-row > td:last-child  > .leader-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  pointer-events: none;
+  background-image: radial-gradient(circle 2.5px at 50% 50%,
+    #fff6b8 0%, #ffd84d 45%, rgba(255, 216, 77, 0) 70%);
+  background-size: 6px 12px;
+  background-repeat: repeat-y;
+  background-position: center;
+  animation: leader-bulb-blink-alt 0.9s ease-in-out infinite;
+}
+.leader-row > td:first-child > .leader-side { left: -3px; animation-name: leader-bulb-blink; }
+.leader-row > td:last-child  > .leader-side { right: -3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .leader-row > td::before,
+  .leader-row > td::after,
+  .leader-row > td > .leader-side { animation: none; opacity: 0.7; }
+}

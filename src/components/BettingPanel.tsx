@@ -338,12 +338,16 @@ function Leaderboard({ currentName }: { currentName: string | null }) {
             {ranked.map((p, i) => {
               const net = p.balance - STARTING_BANKROLL;
               const isMe = p.name === currentName;
+              const isLeader = i === 0;
               return (
                 <tr
                   key={p.name}
-                  className={`border-t border-cyan-300/5 ${isMe ? "bg-cyan-400/10" : ""}`}
+                  className={`border-t border-cyan-300/5 ${isMe ? "bg-cyan-400/10" : ""} ${isLeader ? "leader-row" : ""}`}
                 >
-                  <td className="py-1 font-mono">{i + 1}</td>
+                  <td className="py-1 font-mono">
+                    {isLeader && <span className="leader-side" aria-hidden />}
+                    {i + 1}
+                  </td>
                   <td className="py-1 font-semibold">
                     {p.name}
                     {p.is_guest && <span className="ml-1.5 text-[10px] text-muted-foreground">(guest)</span>}
@@ -356,7 +360,10 @@ function Leaderboard({ currentName }: { currentName: string | null }) {
                   >
                     {net > 0 ? "+" : ""}{fmtCoins(net)}
                   </td>
-                  <td className="py-1 text-right font-mono tabular-nums">{fmtCoins(p.best_win)}</td>
+                  <td className="py-1 text-right font-mono tabular-nums">
+                    {fmtCoins(p.best_win)}
+                    {isLeader && <span className="leader-side" aria-hidden />}
+                  </td>
                 </tr>
               );
             })}
