@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Trophy, Download, Flame, Calendar, RefreshCw, Info, Zap } from "lucide-react";
+import { Trophy, Download, Flame, Calendar, RefreshCw, Info, Zap, ChevronDown } from "lucide-react";
 
 
 export const Route = createFileRoute("/")({
@@ -55,7 +55,15 @@ function PotBadge({ pot, className = "" }: { pot: Pot; className?: string }) {
   );
 }
 
-function TeamChip({ team, showOwner = false }: { team: string; showOwner?: boolean }) {
+function TeamChip({
+  team,
+  showOwner = false,
+  showPot = true,
+}: {
+  team: string;
+  showOwner?: boolean;
+  showPot?: boolean;
+}) {
   const t = TEAMS[team];
   const owner = teamOwner(team);
   if (!team) return <span className="text-muted-foreground italic">TBD</span>;
@@ -63,7 +71,7 @@ function TeamChip({ team, showOwner = false }: { team: string; showOwner?: boole
     <>
       <span className="text-lg leading-none">{t?.flag ?? "🏳️"}</span>
       <span className="font-semibold">{team}</span>
-      {t && <PotBadge pot={t.pot} />}
+      {t && showPot && <PotBadge pot={t.pot} />}
       {showOwner && owner && <span className="text-xs text-muted-foreground">· {owner}</span>}
     </>
   );
@@ -537,6 +545,8 @@ function FixtureRow({ match }: { match: Match }) {
 
   const ownerH = teamOwner(e.home);
   const ownerA = teamOwner(e.away);
+  const homePot = TEAMS[e.home]?.pot;
+  const awayPot = TEAMS[e.away]?.pot;
 
   const stageLabel = match.stage === "group" ? `Group ${match.group}` : match.stage;
 
@@ -572,8 +582,13 @@ function FixtureRow({ match }: { match: Match }) {
       </div>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         <div className="text-right">
-          <TeamChip team={e.home} />
-          {ownerH && <div className="text-[10px] text-muted-foreground mt-0.5">{ownerH}</div>}
+          <TeamChip team={e.home} showPot={false} />
+          {ownerH && (
+            <div className="mt-0.5 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
+              <span>{ownerH}</span>
+              {homePot && <PotBadge pot={homePot} />}
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-center gap-2 font-black tabular-nums text-lg min-w-[80px]">
           {ds ? (
@@ -587,8 +602,13 @@ function FixtureRow({ match }: { match: Match }) {
           )}
         </div>
         <div className="text-left">
-          <TeamChip team={e.away} />
-          {ownerA && <div className="text-[10px] text-muted-foreground mt-0.5">{ownerA}</div>}
+          <TeamChip team={e.away} showPot={false} />
+          {ownerA && (
+            <div className="mt-0.5 flex items-center justify-start gap-1 text-[10px] text-muted-foreground">
+              <span>{ownerA}</span>
+              {awayPot && <PotBadge pot={awayPot} />}
+            </div>
+          )}
         </div>
       </div>
       {ds?.played && (
@@ -1356,13 +1376,12 @@ function BracketTeam({ team, projected }: { team: string; projected: boolean }) 
 
 function Bracket() {
   const state = useAppState();
+  const [showGroupStandings, setShowGroupStandings] = useState(false);
   // recompute on score / knockout-slot changes
-  const { groupProbs, standings, rounds } = useMemo(() => {
+  const { standings, rounds } = useMemo(() => {
     void state;
     const standings = bestEstimateStandings();
-    const groupProbs = computeAllGroupProbs();
     return {
-      groupProbs,
       standings,
       rounds: projectAllRounds(state.scores, state.knockoutSlots),
     };
@@ -1380,17 +1399,32 @@ function Bracket() {
   return (
     <div className="space-y-6">
       <Card className="p-4 bg-card border-border">
-        <h2 className="text-lg font-bold mb-1">Group standings (live)</h2>
-        <p className="text-[11px] text-muted-foreground mb-2">
-          Model-weighted group-finish probabilities from enumerating every possible result
-          class of remaining group matches, using official FIFA 2026 tiebreakers
-          (pts → head-to-head → GD → GF → Elo ranking). Third-place teams still need a top-8 cross-group ranking.
-        </p>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {GROUP_LETTERS.map((g) => (
-            <GroupTable key={g} letter={g} probs={groupProbs} standing={standings[g]} />
-          ))}
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold mb-1">Group standings complete</h2>
+            <p className="text-[11px] text-muted-foreground">
+              Final group tables using FIFA 2026 tiebreakers.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="shrink-0 gap-1.5"
+            aria-expanded={showGroupStandings}
+            onClick={() => setShowGroupStandings((show) => !show)}
+          >
+            <ChevronDown className={`h-4 w-4 transition-transform ${showGroupStandings ? "rotate-180" : ""}`} />
+            {showGroupStandings ? "Hide" : "Show"}
+          </Button>
         </div>
+        {showGroupStandings && (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
+            {GROUP_LETTERS.map((g) => (
+              <GroupTable key={g} letter={g} standing={standings[g]} />
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card className="p-4 bg-card border-border">
@@ -1454,50 +1488,45 @@ function Bracket() {
 
 function GroupTable({
   letter,
-  probs,
   standing,
 }: {
   letter: GroupLetter;
-  probs: GroupProbs;
   standing: GroupStanding;
 }) {
-  const formatPlacementChance = (chance: number) => {
-    if (chance <= 0.0001) return "";
-    if (chance >= 0.9995) return "✓";
-    const pct = chance * 100;
-    if (pct < 0.1) return "<0.1%";
-    if (pct < 10) return `${pct.toFixed(1)}%`;
-    return `${pct.toFixed(0)}%`;
-  };
-
   return (
     <div className="rounded-md bg-secondary/30 p-2">
-      <div className="text-xs font-black text-primary mb-1">Group {letter}</div>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <div className="text-xs font-black text-primary">Group {letter}</div>
+        <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-black text-emerald-300">
+          COMPLETED
+        </span>
+      </div>
       <table className="w-full table-fixed text-[10px]">
         <colgroup>
-          <col className="w-[42%]" />
-          <col className="w-[11.6%]" />
-          <col className="w-[11.6%]" />
-          <col className="w-[11.6%]" />
-          <col className="w-[11.6%]" />
-          <col className="w-[11.6%]" />
+          <col className="w-[11%]" />
+          <col className="w-[45%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
+          <col className="w-[11%]" />
         </colgroup>
         <thead>
           <tr className="text-muted-foreground">
+            <th className="pb-1 pr-1 text-left font-semibold">#</th>
             <th className="pb-1 pr-1 text-left font-semibold">Team</th>
-            <th className="pb-1 text-right font-semibold" title="Chance of finishing 1st">1st</th>
-            <th className="pb-1 text-right font-semibold" title="Chance of finishing 2nd">2nd</th>
-            <th className="pb-1 text-right font-semibold" title="Chance of finishing 3rd and qualifying as a best third-place team">3T</th>
-            <th className="pb-1 text-right font-semibold" title="Chance of finishing 3rd and going out">3O</th>
-            <th className="pb-1 text-right font-semibold" title="Chance of finishing 4th">4th</th>
+            <th className="pb-1 text-right font-semibold">P</th>
+            <th className="pb-1 text-right font-semibold">Pts</th>
+            <th className="pb-1 text-right font-semibold">GD</th>
+            <th className="pb-1 text-right font-semibold">GF</th>
           </tr>
         </thead>
         <tbody>
-          {standing.order.map((t) => {
-            const p = probs[t] ?? emptyPlacementProbs();
-            const title = `1st ${(p.first*100).toFixed(1)}% · 2nd ${(p.second*100).toFixed(1)}% · 3rd & thru ${(p.thirdThrough*100).toFixed(1)}% · 3rd & out ${(p.thirdOut*100).toFixed(1)}% · 4th ${(p.fourth*100).toFixed(1)}%`;
+          {standing.order.map((t, i) => {
+            const s = standing.stats[t];
+            const gd = s.gf - s.ga;
             return (
-              <tr key={t} title={title} className="border-t border-border/30 first:border-t-0">
+              <tr key={t} className="border-t border-border/30 first:border-t-0">
+                <td className="py-1 pr-1 font-semibold tabular-nums text-muted-foreground">{i + 1}</td>
                 <td className="py-1 pr-1">
                   <span className="flex min-w-0 items-center gap-1">
                     <span>{TEAMS[t].flag}</span>
@@ -1505,11 +1534,10 @@ function GroupTable({
                     <PlayerTag team={t} />
                   </span>
                 </td>
-                <td className="py-1 text-right font-semibold tabular-nums text-emerald-400">{formatPlacementChance(p.first)}</td>
-                <td className="py-1 text-right font-semibold tabular-nums text-emerald-400">{formatPlacementChance(p.second)}</td>
-                <td className="py-1 text-right font-semibold tabular-nums text-emerald-400">{formatPlacementChance(p.thirdThrough)}</td>
-                <td className="py-1 text-right font-semibold tabular-nums text-amber-400">{formatPlacementChance(p.thirdOut)}</td>
-                <td className="py-1 text-right font-semibold tabular-nums text-destructive">{formatPlacementChance(p.fourth)}</td>
+                <td className="py-1 text-right font-semibold tabular-nums">{s.p}</td>
+                <td className="py-1 text-right font-semibold tabular-nums">{s.pts}</td>
+                <td className="py-1 text-right font-semibold tabular-nums">{gd > 0 ? `+${gd}` : gd}</td>
+                <td className="py-1 text-right font-semibold tabular-nums">{s.gf}</td>
               </tr>
             );
           })}
