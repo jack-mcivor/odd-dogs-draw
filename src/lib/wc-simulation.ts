@@ -4,7 +4,7 @@
 // reaching each stage and winning the tournament.
 
 import {
-  ALL_MATCHES, GROUP_MATCHES, GROUPS, GROUP_LETTERS, KNOCKOUT_MATCHES,
+  ALL_MATCHES, CONFIRMED_R32_MATCHUPS, GROUP_MATCHES, GROUPS, GROUP_LETTERS, KNOCKOUT_MATCHES,
   TEAMS, type GroupLetter, type Match,
 } from "./wc-data";
 import { effectiveScore, getState } from "./wc-store";
@@ -26,31 +26,6 @@ export interface TeamSimProbs {
   final: number;
   win: number;
 }
-
-// ---------- bracket structure (mirrors src/routes/index.tsx R32_STRUCTURE) ----------
-type R32Slot =
-  | { kind: "w"; g: GroupLetter }
-  | { kind: "ru"; g: GroupLetter }
-  | { kind: "b3"; cluster: GroupLetter[] };
-
-const R32_STRUCTURE: Array<[R32Slot, R32Slot]> = [
-  [{ kind: "ru", g: "A" }, { kind: "ru", g: "B" }],
-  [{ kind: "w",  g: "E" }, { kind: "b3", cluster: ["A","B","C","D","F"] }],
-  [{ kind: "w",  g: "F" }, { kind: "ru", g: "C" }],
-  [{ kind: "w",  g: "C" }, { kind: "ru", g: "F" }],
-  [{ kind: "w",  g: "I" }, { kind: "b3", cluster: ["C","D","F","G","H"] }],
-  [{ kind: "ru", g: "E" }, { kind: "ru", g: "I" }],
-  [{ kind: "w",  g: "A" }, { kind: "b3", cluster: ["C","E","F","H","I"] }],
-  [{ kind: "w",  g: "L" }, { kind: "b3", cluster: ["E","H","I","J","K"] }],
-  [{ kind: "w",  g: "D" }, { kind: "b3", cluster: ["B","E","F","I","J"] }],
-  [{ kind: "w",  g: "G" }, { kind: "b3", cluster: ["A","E","H","I","J"] }],
-  [{ kind: "ru", g: "K" }, { kind: "ru", g: "L" }],
-  [{ kind: "w",  g: "H" }, { kind: "ru", g: "J" }],
-  [{ kind: "w",  g: "B" }, { kind: "b3", cluster: ["E","F","G","I","J"] }],
-  [{ kind: "w",  g: "J" }, { kind: "ru", g: "H" }],
-  [{ kind: "w",  g: "K" }, { kind: "b3", cluster: ["D","E","I","J","L"] }],
-  [{ kind: "ru", g: "D" }, { kind: "ru", g: "G" }],
-];
 
 // ---------- math helpers ----------
 function poisson(lambda: number): number {
@@ -158,12 +133,14 @@ function prepareInputs(): SimInputs {
   for (const m of KNOCKOUT_MATCHES) {
     knockoutVenues[m.id] = m.venue;
     const ko = slots[m.id];
-    if (!ko?.home || !ko?.away) continue;
+    const home = m.home || ko?.home;
+    const away = m.away || ko?.away;
+    if (!home || !away) continue;
     const score = effectiveScore(m.id);
     if (!score) continue;
     if (score.home === score.away) continue; // shootout: leave to sim
     knockoutOverrides[m.id] = {
-      home: ko.home, away: ko.away, winnerHome: score.home > score.away,
+      home, away, winnerHome: score.home > score.away,
     };
   }
 
@@ -309,53 +286,8 @@ function runGroups(inputs: SimInputs): {
 }
 
 // ---------- bracket slotting ----------
-function buildR32Pairs(
-  qualifiersByGroup: Record<GroupLetter, [string, string]>,
-  thirds: Array<GroupRunStats & { group: GroupLetter }>,
-): Array<[string, string]> {
-  // top-8 thirds by pts, GD, GF, Elo
-  const sortedThirds = [...thirds].sort((a, b) => {
-    if (b.pts !== a.pts) return b.pts - a.pts;
-    const gdA = a.gf - a.ga, gdB = b.gf - b.ga;
-    if (gdB !== gdA) return gdB - gdA;
-    if (b.gf !== a.gf) return b.gf - a.gf;
-    return b.elo - a.elo;
-  });
-  const top8 = sortedThirds.slice(0, 8);
-  const top8Groups = new Set(top8.map((t) => t.group));
-
-  // Greedy b3 assignment matching the bracket UI's logic.
-  const used = new Set<GroupLetter>();
-  const b3SlotPicks = new Map<number, string>(); // flat slot index (row*2+col) -> team
-  R32_STRUCTURE.forEach((pair, row) => {
-    pair.forEach((slot, col) => {
-      if (slot.kind !== "b3") return;
-      const pick = top8.find(
-        (t) => slot.cluster.includes(t.group) && !used.has(t.group) && top8Groups.has(t.group),
-      );
-      if (pick) {
-        used.add(pick.group);
-        b3SlotPicks.set(row * 2 + col, pick.team);
-      }
-    });
-  });
-
-  // Build the 16 R32 pairs as concrete team names.
-  const pairs: Array<[string, string]> = [];
-  R32_STRUCTURE.forEach((pair, row) => {
-    const sides: string[] = pair.map((slot, col) => {
-      if (slot.kind === "w") return qualifiersByGroup[slot.g][0];
-      if (slot.kind === "ru") return qualifiersByGroup[slot.g][1];
-      // b3 — fall back to any remaining top-8 group if greedy left a hole
-      const picked = b3SlotPicks.get(row * 2 + col);
-      if (picked) return picked;
-      const fallback = top8.find((t) => !used.has(t.group));
-      if (fallback) { used.add(fallback.group); return fallback.team; }
-      return ""; // unreachable in a normal sim
-    });
-    pairs.push([sides[0], sides[1]]);
-  });
-  return pairs;
+function buildR32Pairs(): Array<[string, string]> {
+  return CONFIRMED_R32_MATCHUPS.map(([home, away]) => [home, away]);
 }
 
 // ---------- knockout simulation ----------
@@ -378,8 +310,7 @@ function runOnce(
   inputs: SimInputs,
   reached: Record<string, TeamSimProbs>,
 ): void {
-  const { qualifiersByGroup, thirds } = runGroups(inputs);
-  const r32Pairs = buildR32Pairs(qualifiersByGroup, thirds);
+  const r32Pairs = buildR32Pairs();
 
   const counted = new Set<string>();
   for (const [a, b] of r32Pairs) {

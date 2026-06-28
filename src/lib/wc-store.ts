@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import {
-  ALL_MATCHES, GROUP_MATCHES, KNOCKOUT_MATCHES, PLAYERS, TEAMS,
+  ALL_MATCHES, KNOCKOUT_MATCHES, PLAYERS, TEAMS,
   teamOwner, type Match,
 } from "./wc-data";
 import { getLiveMatch } from "./wc-live";
@@ -145,8 +145,8 @@ export function effectiveTeams(m: Match): { home: string; away: string } {
   if (m.stage === "group") return { home: m.home, away: m.away };
   const ko = state.knockoutSlots[m.id];
   return {
-    home: ko?.home ?? m.home,
-    away: ko?.away ?? m.away,
+    home: m.home || ko?.home || "",
+    away: m.away || ko?.away || "",
   };
 }
 
@@ -300,22 +300,27 @@ export function computeAllTotals(): PlayerTotals[] {
 }
 
 
-// A team is "eliminated" if any match in the knockout stage they were assigned to has been played and they lost.
-// Simpler heuristic: eliminated if all their played group matches are done AND they didn't advance (not in any knockout slot)
-// after knockout has begun. For tracking purposes we just expose this:
 export function isTeamEliminated(team: string): boolean {
-  // played all 3 group games and not present in any knockout slot
-  const groupGames = GROUP_MATCHES.filter((m) => m.home === team || m.away === team);
-  const allPlayed = groupGames.every((m) => state.scores[m.id]?.played);
-  if (!allPlayed) return false;
-  const inKO = KNOCKOUT_MATCHES.some((m) => {
+  const lostKnockout = KNOCKOUT_MATCHES.some((m) => {
+    const score = effectiveScore(m.id);
+    if (!score || score.home === score.away) return false;
+    const e = effectiveTeams(m);
+    if (e.home !== team && e.away !== team) return false;
+    return e.home === team ? score.home < score.away : score.away < score.home;
+  });
+  if (lostKnockout) return true;
+
+  const hasKnownKnockoutField = KNOCKOUT_MATCHES.some((m) => {
+    const e = effectiveTeams(m);
+    return !!e.home || !!e.away;
+  });
+  if (!hasKnownKnockoutField) return false;
+
+  const inKnownKnockout = KNOCKOUT_MATCHES.some((m) => {
     const e = effectiveTeams(m);
     return e.home === team || e.away === team;
   });
-  // Only call eliminated if knockout assignments have started
-  const koStarted = KNOCKOUT_MATCHES.some((m) => state.knockoutSlots[m.id]);
-  if (!koStarted) return false;
-  return !inKO;
+  return !inKnownKnockout;
 }
 
 export function nextUpcoming(n: number): Match[] {
