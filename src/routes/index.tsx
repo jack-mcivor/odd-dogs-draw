@@ -3,7 +3,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { fetchAndApply, initApi, useApiMeta, WILDCARD_ASSIGNMENTS } from "@/lib/wc-api";
 import { initLive, useLiveMatch, useLiveState } from "@/lib/wc-live";
 import {
-  ALL_MATCHES, GROUP_MATCHES, GROUPS, GROUP_LETTERS, KNOCKOUT_MATCHES,
+  ALL_MATCHES, CONFIRMED_R32_MATCHUPS, GROUP_MATCHES, GROUPS, GROUP_LETTERS, KNOCKOUT_MATCHES,
   PLAYERS, POT_LABEL_CLASS, TEAMS, teamOwner, type GroupLetter, type Match, type Pot,
 } from "@/lib/wc-data";
 import {
@@ -1097,43 +1097,6 @@ function bestEstimateStandings(): Record<GroupLetter, GroupStanding> {
   return out;
 }
 
-// Rank third-place teams across groups: pts, GD, GF, FIFA ranking (Elo fallback).
-function rankThirds(standings: Record<GroupLetter, GroupStanding>): { team: string; group: GroupLetter; complete: boolean }[] {
-  const arr = GROUP_LETTERS.map((g) => {
-    const s = standings[g];
-    const t = s.order[2];
-    const st = s.stats[t];
-    return { team: t, group: g, complete: s.allPlayed, pts: st.pts, gd: st.gf - st.ga, gf: st.gf };
-  });
-  arr.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf || teamElo(b.team) - teamElo(a.team));
-  return arr.map(({ team, group, complete }) => ({ team, group, complete }));
-}
-
-// ---------- FIFA confirmed R32 bracket structure (Matches 73–88) ----------
-type R32Slot =
-  | { kind: "w"; g: GroupLetter }
-  | { kind: "ru"; g: GroupLetter }
-  | { kind: "b3"; cluster: GroupLetter[] };
-
-const R32_STRUCTURE: Array<[R32Slot, R32Slot]> = [
-  [{ kind: "ru", g: "A" }, { kind: "ru", g: "B" }],                                   // 73
-  [{ kind: "w",  g: "E" }, { kind: "b3", cluster: ["A","B","C","D","F"] }],          // 74
-  [{ kind: "w",  g: "F" }, { kind: "ru", g: "C" }],                                   // 75
-  [{ kind: "w",  g: "C" }, { kind: "ru", g: "F" }],                                   // 76
-  [{ kind: "w",  g: "I" }, { kind: "b3", cluster: ["C","D","F","G","H"] }],          // 77
-  [{ kind: "ru", g: "E" }, { kind: "ru", g: "I" }],                                   // 78
-  [{ kind: "w",  g: "A" }, { kind: "b3", cluster: ["C","E","F","H","I"] }],          // 79
-  [{ kind: "w",  g: "L" }, { kind: "b3", cluster: ["E","H","I","J","K"] }],          // 80
-  [{ kind: "w",  g: "D" }, { kind: "b3", cluster: ["B","E","F","I","J"] }],          // 81
-  [{ kind: "w",  g: "G" }, { kind: "b3", cluster: ["A","E","H","I","J"] }],          // 82
-  [{ kind: "ru", g: "K" }, { kind: "ru", g: "L" }],                                   // 83
-  [{ kind: "w",  g: "H" }, { kind: "ru", g: "J" }],                                   // 84
-  [{ kind: "w",  g: "B" }, { kind: "b3", cluster: ["E","F","G","I","J"] }],          // 85
-  [{ kind: "w",  g: "J" }, { kind: "ru", g: "H" }],                                   // 86
-  [{ kind: "w",  g: "K" }, { kind: "b3", cluster: ["D","E","I","J","L"] }],          // 87
-  [{ kind: "ru", g: "D" }, { kind: "ru", g: "G" }],                                   // 88
-];
-
 type ProjectedSlot =
   | {
       team: string;
@@ -1146,101 +1109,15 @@ type ProjectedSlot =
   | { team: null; description: string; confidence?: number };
 
 
-function projectR32Slots(
-  probs: GroupProbs,
-): ProjectedSlot[][] {
-
-  const standings = bestEstimateStandings();
-  const allGroupsComplete = GROUP_LETTERS.every((g) => standings[g].allPlayed);
-  const thirds = rankThirds(standings); // already sorted
-  // Top-8 third places (current best estimate)
-  const top8 = new Set(thirds.slice(0, 8).map((t) => t.group));
-  // Greedy assignment of 3rd-place teams to b3 slots
-  const used = new Set<GroupLetter>();
-  const slotRows: ProjectedSlot[][] = [];
-
-  // We need to assign in the order of the FIFA b3 slots, picking the top-ranked
-  // currently-top-8 third from each slot's cluster.
-  const b3Assignments = new Map<number, { team: string; group: GroupLetter; projected: boolean } | { team: null; description: string }>();
-
-  // First gather all b3 slot indices and clusters
-  const b3List: { row: number; col: number; cluster: GroupLetter[] }[] = [];
-  R32_STRUCTURE.forEach((pair, row) => {
-    pair.forEach((slot, col) => {
-      if (slot.kind === "b3") b3List.push({ row, col, cluster: slot.cluster });
-    });
-  });
-
-  for (const { row, col, cluster } of b3List) {
-    // candidates: groups in cluster, in current best-estimate top-8, not yet used
-    const candidates = thirds.filter(
-      (t) => cluster.includes(t.group) && top8.has(t.group) && !used.has(t.group),
-    );
-    if (candidates.length === 0) {
-      b3Assignments.set(row * 10 + col, {
-        team: null,
-        description: `Best 3rd — Group ${cluster.join("/")}`,
-      });
-    } else {
-      const pick = candidates[0];
-      used.add(pick.group);
-      b3Assignments.set(row * 10 + col, {
-        team: pick.team,
-        group: pick.group,
-        projected: !allGroupsComplete || !pick.complete,
-      });
-    }
-  }
-
-  R32_STRUCTURE.forEach((pair, row) => {
-    const rowOut: ProjectedSlot[] = [];
-    pair.forEach((slot, col) => {
-      if (slot.kind === "w") {
-        const s = standings[slot.g];
-        const team = s.order[0];
-        const p = probs[team] ?? emptyPlacementProbs();
-        rowOut.push({
-          team,
-          projected: !s.allPlayed,
-          group: slot.g,
-          role: "winner",
-          confidence: s.allPlayed ? 1 : p.first,
-        });
-      } else if (slot.kind === "ru") {
-        const s = standings[slot.g];
-        const team = s.order[1];
-        const p = probs[team] ?? emptyPlacementProbs();
-        rowOut.push({
-          team,
-          projected: !s.allPlayed,
-          group: slot.g,
-          role: "runner-up",
-          confidence: s.allPlayed ? 1 : p.second,
-        });
-      } else {
-        const a = b3Assignments.get(row * 10 + col)!;
-        if (a.team !== null) {
-          const p = probs[a.team] ?? emptyPlacementProbs();
-          rowOut.push({
-            team: a.team,
-            projected: a.projected,
-            group: a.group,
-            role: "3rd-place",
-            confidence: a.projected ? p.thirdThrough : 1,
-          });
-        } else {
-          rowOut.push({ team: null, description: a.description });
-        }
-      }
-    });
-    slotRows.push(rowOut);
-  });
-
-  return slotRows;
+function projectR32Slots(): ProjectedSlot[][] {
+  return CONFIRMED_R32_MATCHUPS.map(([home, away]) => [
+    { team: home, projected: false, confidence: 1 },
+    { team: away, projected: false, confidence: 1 },
+  ]);
 }
 
 // ---------- Later-round projection ----------
-// If a knockout match has been played AND its slots are filled, return the
+// If a knockout match has been played and its teams are known, return the
 // actual winner / loser so confirmed teams cascade through later rounds.
 function knockoutActualPair(
   matchId: string,
@@ -1250,9 +1127,12 @@ function knockoutActualPair(
   const s = scores[matchId];
   if (!s?.played) return null;
   const ko = knockoutSlots[matchId];
-  if (!ko?.home || !ko?.away) return null;
-  if (s.home > s.away) return { winner: ko.home, loser: ko.away };
-  if (s.away > s.home) return { winner: ko.away, loser: ko.home };
+  const match = KNOCKOUT_MATCHES.find((m) => m.id === matchId);
+  const home = match?.home || ko?.home;
+  const away = match?.away || ko?.away;
+  if (!home || !away) return null;
+  if (s.home > s.away) return { winner: home, loser: away };
+  if (s.away > s.home) return { winner: away, loser: home };
   return null; // tie — assume penalty shoot-out result not yet known
 }
 
@@ -1314,11 +1194,10 @@ type RoundProjection = {
 };
 
 function projectAllRounds(
-  probs: GroupProbs,
   scores: Record<string, { home: number; away: number; played: boolean }>,
   knockoutSlots: Record<string, { home?: string; away?: string }>,
 ): RoundProjection {
-  const R32 = projectR32Slots(probs);
+  const R32 = projectR32Slots();
 
   const r32Winners: ProjectedSlot[] = R32.map((pair, i) =>
     projectMatchOutcome(pair[0], pair[1], `R32-${i + 1}`, scores, knockoutSlots).winner,
@@ -1408,7 +1287,7 @@ function Bracket() {
     return {
       groupProbs,
       standings,
-      rounds: projectAllRounds(groupProbs, state.scores, state.knockoutSlots),
+      rounds: projectAllRounds(state.scores, state.knockoutSlots),
     };
   }, [state.scores, state.knockoutSlots]);
 
@@ -1439,9 +1318,9 @@ function Bracket() {
 
       <Card className="p-4 bg-card border-border">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-bold">Round of 32 — projected bracket</h3>
+          <h3 className="font-bold">Round of 32 — confirmed bracket</h3>
           <span className="text-[10px] text-muted-foreground italic">
-            Confidence-based: % next to each team = probability they fill that slot. Confirmed when their group(s) finish.
+            Finalized matchups from the tournament rules.
           </span>
 
         </div>
@@ -2106,4 +1985,3 @@ goalsA = Poisson(λA);  goalsB = Poisson(λB)`}</pre>
     </TooltipProvider>
   );
 }
-

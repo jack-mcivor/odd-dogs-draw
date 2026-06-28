@@ -155,6 +155,25 @@ export interface Match {
   away: string;
 }
 
+export const CONFIRMED_R32_MATCHUPS: readonly (readonly [string, string])[] = [
+  ["South Africa", "Canada"],
+  ["Brazil", "Japan"],
+  ["Germany", "Paraguay"],
+  ["Netherlands", "Morocco"],
+  ["Côte d'Ivoire", "Norway"],
+  ["France", "Sweden"],
+  ["Mexico", "Ecuador"],
+  ["England", "DR Congo"],
+  ["Belgium", "Senegal"],
+  ["United States", "Bosnia & Herzegovina"],
+  ["Spain", "Austria"],
+  ["Portugal", "Croatia"],
+  ["Switzerland", "Algeria"],
+  ["Australia", "Egypt"],
+  ["Argentina", "Cape Verde"],
+  ["Colombia", "Ghana"],
+];
+
 // All 72 confirmed group-stage fixtures. Times are ET (EDT, UTC-4 in June).
 type FixtureRow = [GroupLetter, string, string, string, string, string]; // group, home, away, ISO date, venue, city
 
@@ -289,17 +308,19 @@ function genKnockouts(): Match[] {
     dates: string[],
     prefix: string,
     fixedVenue?: { city: string; stadium: string },
+    matchups?: readonly (readonly [string, string])[],
   ) => {
     for (let i = 0; i < count; i++) {
       const v = fixedVenue ?? VENUES[i % VENUES.length];
+      const matchup = matchups?.[i];
       list.push({
         id: `${prefix}-${i + 1}`,
         stage,
         date: dates[i % dates.length],
         venue: v.stadium,
         city: v.city,
-        home: "",
-        away: "",
+        home: matchup?.[0] ?? "",
+        away: matchup?.[1] ?? "",
       });
     }
   };
@@ -313,7 +334,7 @@ function genKnockouts(): Match[] {
     "2026-07-03T12:00:00-04:00", "2026-07-03T16:00:00-04:00",
     "2026-07-03T20:00:00-04:00", "2026-06-28T12:00:00-04:00",
     "2026-06-30T12:00:00-04:00", "2026-07-01T12:00:00-04:00",
-  ], "R32");
+  ], "R32", undefined, CONFIRMED_R32_MATCHUPS);
   make("R16", 8, [
     "2026-07-04T15:00:00-04:00", "2026-07-04T19:00:00-04:00",
     "2026-07-05T15:00:00-04:00", "2026-07-05T19:00:00-04:00",

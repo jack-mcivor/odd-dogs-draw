@@ -145,8 +145,8 @@ export function effectiveTeams(m: Match): { home: string; away: string } {
   if (m.stage === "group") return { home: m.home, away: m.away };
   const ko = state.knockoutSlots[m.id];
   return {
-    home: ko?.home ?? m.home,
-    away: ko?.away ?? m.away,
+    home: m.home || ko?.home || "",
+    away: m.away || ko?.away || "",
   };
 }
 
