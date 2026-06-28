@@ -90,6 +90,67 @@ function TeamChip({
   );
 }
 
+function FixtureTeamLabel({ team, side }: { team: string; side: "home" | "away" }) {
+  const t = TEAMS[team];
+  if (!team) return <span className="text-muted-foreground italic">TBD</span>;
+  const flag = <span className="text-lg leading-none">{t?.flag ?? "🏳️"}</span>;
+  const name = <span className="min-w-0 truncate font-semibold">{team}</span>;
+  const content = side === "home" ? (
+    <>
+      {name}
+      {flag}
+    </>
+  ) : (
+    <>
+      {flag}
+      {name}
+    </>
+  );
+  const className = `inline-flex max-w-full items-center gap-1.5 ${
+    side === "home" ? "justify-end" : "justify-start"
+  }`;
+  if (!t) return <span className={className}>{content}</span>;
+  return (
+    <Link
+      to="/team/$team"
+      params={{ team }}
+      className={`${className} hover:text-primary transition`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {content}
+    </Link>
+  );
+}
+
+function FixtureOwnerLine({
+  owner,
+  pot,
+  side,
+}: {
+  owner: string | undefined;
+  pot: Pot | undefined;
+  side: "home" | "away";
+}) {
+  if (!owner) return null;
+  return (
+    <div className={`mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground ${
+      side === "home" ? "justify-end" : "justify-start"
+    }`}>
+      {side === "home" ? (
+        <>
+          <span>{owner}</span>
+          {pot && <PotBadge pot={pot} />}
+        </>
+      ) : (
+        <>
+          {pot && <PotBadge pot={pot} />}
+          <span>{owner}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
 function formatDate(iso: string, timeZone: string): string {
   const d = new Date(iso);
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -581,14 +642,9 @@ function FixtureRow({ match }: { match: Match }) {
         </div>
       </div>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <div className="text-right">
-          <TeamChip team={e.home} showPot={false} />
-          {ownerH && (
-            <div className="mt-0.5 flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
-              <span>{ownerH}</span>
-              {homePot && <PotBadge pot={homePot} />}
-            </div>
-          )}
+        <div className="min-w-0 text-right">
+          <FixtureTeamLabel team={e.home} side="home" />
+          <FixtureOwnerLine owner={ownerH} pot={homePot} side="home" />
         </div>
         <div className="flex items-center justify-center gap-2 font-black tabular-nums text-lg min-w-[80px]">
           {ds ? (
@@ -601,14 +657,9 @@ function FixtureRow({ match }: { match: Match }) {
             <span className="text-muted-foreground text-xs font-normal">vs</span>
           )}
         </div>
-        <div className="text-left">
-          <TeamChip team={e.away} showPot={false} />
-          {ownerA && (
-            <div className="mt-0.5 flex items-center justify-start gap-1 text-[10px] text-muted-foreground">
-              <span>{ownerA}</span>
-              {awayPot && <PotBadge pot={awayPot} />}
-            </div>
-          )}
+        <div className="min-w-0 text-left">
+          <FixtureTeamLabel team={e.away} side="away" />
+          <FixtureOwnerLine owner={ownerA} pot={awayPot} side="away" />
         </div>
       </div>
       {ds?.played && (
