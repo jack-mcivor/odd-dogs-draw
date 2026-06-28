@@ -287,6 +287,10 @@ function runGroups(inputs: SimInputs): {
 
 // ---------- bracket slotting ----------
 function buildR32Pairs(): Array<[string, string]> {
+  const apiPairs = KNOCKOUT_MATCHES
+    .filter((m) => m.stage === "R32")
+    .map((m) => [m.home, m.away] as [string, string]);
+  if (apiPairs.length === 16 && apiPairs.every(([home, away]) => home && away)) return apiPairs;
   return CONFIRMED_R32_MATCHUPS.map(([home, away]) => [home, away]);
 }
 

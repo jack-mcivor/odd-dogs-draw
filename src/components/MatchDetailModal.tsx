@@ -71,6 +71,7 @@ function MatchDetailModal({ matchId, onClose }: { matchId: string | null; onClos
   const dateObj = new Date(match.date);
   const dateText = dateObj.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const timeText = dateObj.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const locationText = [match.venue, match.city].filter(Boolean).join(", ");
 
   const homeScorers = live?.homeScorers ?? [];
   const awayScorers = live?.awayScorers ?? [];
@@ -164,8 +165,7 @@ function MatchDetailModal({ matchId, onClose }: { matchId: string | null; onClos
           <div className="space-y-1 text-sm border-t border-border pt-3">
             <div><span className="text-muted-foreground">Date:</span> {dateText}</div>
             <div><span className="text-muted-foreground">Kickoff:</span> {timeText}</div>
-            <div><span className="text-muted-foreground">Venue:</span> {match.venue}</div>
-            <div><span className="text-muted-foreground">City:</span> {match.city}</div>
+            <div><span className="text-muted-foreground">Location:</span> {locationText}</div>
           </div>
 
           {/* Sweepstakes */}

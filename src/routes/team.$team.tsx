@@ -228,6 +228,7 @@ function TeamFixture({ match, team }: { match: Match; team: string }) {
   const result = played
     ? (my! > op! ? "W" : my! === op! ? "D" : "L")
     : null;
+  const location = [match.venue, match.city].filter(Boolean).join(", ");
 
   const stageLabel = match.stage === "group" ? `Group ${match.group}` : match.stage;
 
@@ -237,7 +238,7 @@ function TeamFixture({ match, team }: { match: Match; team: string }) {
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className="border-primary/40 text-primary text-[10px]">{stageLabel}</Badge>
           <span><LocalTime iso={match.date} /></span>
-          <span className="hidden sm:inline">· {match.venue}, {match.city}</span>
+          {location && <span className="hidden sm:inline">· {location}</span>}
         </div>
         {result && (
           <span className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-black ${

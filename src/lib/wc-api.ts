@@ -4,7 +4,7 @@
 // Falls back to STATIC_MATCH_API_DATA when the live fetch fails.
 
 import { useSyncExternalStore } from "react";
-import { GROUP_MATCHES, PLAYERS, STATIC_MATCH_API_DATA, type MatchData } from "./wc-data";
+import { applyApiSchedule, GROUP_MATCHES, PLAYERS, STATIC_MATCH_API_DATA, type MatchData } from "./wc-data";
 import { bulkSetScores, setAllWildcards, type WildcardUse } from "./wc-store";
 
 const OPENFOOTBALL_URL =
@@ -112,11 +112,14 @@ export function useApiMeta(): ApiMeta {
 // openfootball match shape (only the fields we use).
 interface OpenFootballGoal { name: string; minute: string; penalty?: boolean; owngoal?: boolean; }
 interface OpenFootballMatch {
+  num?: number;
+  round?: string;
   date: string;
   time: string; // e.g. "13:00 UTC-6"
   team1: string;
   team2: string;
   group?: string;
+  ground?: string;
   score?: { ft?: [number, number]; ht?: [number, number] };
   goals1?: OpenFootballGoal[];
   goals2?: OpenFootballGoal[];
@@ -133,23 +136,59 @@ function parseOpenFootballDateTime(date: string, time: string): Date {
   return new Date(`${date}T${hh}:${mm}:00${sign}${offHH}:${offM}`);
 }
 
+function phaseForOpenFootballMatch(m: OpenFootballMatch): string {
+  if (m.group) return "group";
+  const round = (m.round ?? "").toLowerCase();
+  if (round.includes("32")) return "last-32";
+  if (round.includes("16")) return "round-of-16";
+  if (round.includes("quarter")) return "quarter-finals";
+  if (round.includes("semi")) return "semi-finals";
+  if (round.includes("third")) return "third-place-play-off";
+  if (round.includes("final")) return "final";
+  return "";
+}
+
+function knockoutMatchIdForApiNumber(num: number): string | undefined {
+  if (num >= 73 && num <= 88) return `R32-${num - 72}`;
+  if (num >= 89 && num <= 96) return `R16-${num - 88}`;
+  if (num >= 97 && num <= 100) return `QF-${num - 96}`;
+  if (num >= 101 && num <= 102) return `SF-${num - 100}`;
+  if (num === 103) return "3rd-1";
+  if (num === 104) return "Final-1";
+  return undefined;
+}
+
+function findMatchId(m: MatchData): string | undefined {
+  if (m.phase === "group") {
+    const home = canonName(m.home_name ?? m.home ?? "");
+    const away = canonName(m.away_name ?? m.away ?? "");
+    return findGroupMatchId(home, away);
+  }
+  return knockoutMatchIdForApiNumber(m.num);
+}
+
 // Convert openfootball matches into the internal MatchData shape used downstream.
 function openFootballToMatchData(matches: OpenFootballMatch[]): MatchData[] {
   return matches.map((m, i) => {
     const dt = parseOpenFootballDateTime(m.date, m.time);
     const finished = Array.isArray(m.score?.ft);
+    const ground = m.ground ?? "";
+    const home = canonName(m.team1);
+    const away = canonName(m.team2);
     return {
-      num: i + 1,
+      num: m.num ?? i + 1,
       date: m.date,
       time_utc: dt.toISOString().slice(11, 16),
       datetime_utc: dt.toISOString(),
-      home: m.team1,
-      away: m.team2,
-      home_name: m.team1,
-      away_name: m.team2,
+      home,
+      away,
+      home_name: home,
+      away_name: away,
       group: m.group ?? null,
-      phase: "group",
-      venue: "",
+      phase: phaseForOpenFootballMatch(m),
+      venue: ground,
+      venue_name: ground,
+      venue_city: "",
       slug: "",
       score_home: finished ? m.score!.ft![0] : undefined,
       score_away: finished ? m.score!.ft![1] : undefined,
@@ -180,16 +219,14 @@ export async function fetchAndApply(): Promise<void> {
     matches = STATIC_MATCH_API_DATA.data;
     isStaticData = true;
   }
+  if (!isStaticData) applyApiSchedule(matches);
 
   const updates: Array<{ id: string; home: number; away: number; played: boolean }> = [];
   const live = new Set<string>();
   const now = Date.now();
 
   for (const m of matches) {
-    if (m.phase !== "group") continue;
-    const home = canonName(m.home_name ?? m.home ?? "");
-    const away = canonName(m.away_name ?? m.away ?? "");
-    const id = findGroupMatchId(home, away);
+    const id = findMatchId(m);
     if (!id) continue;
 
     const isFinished = m.status === "FINISHED"

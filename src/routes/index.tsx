@@ -3,7 +3,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { fetchAndApply, initApi, useApiMeta, WILDCARD_ASSIGNMENTS } from "@/lib/wc-api";
 import { initLive, useLiveMatch, useLiveState } from "@/lib/wc-live";
 import {
-  ALL_MATCHES, CONFIRMED_R32_MATCHUPS, GROUP_MATCHES, GROUPS, GROUP_LETTERS, KNOCKOUT_MATCHES,
+  ALL_MATCHES, GROUP_MATCHES, GROUPS, GROUP_LETTERS, KNOCKOUT_MATCHES,
   PLAYERS, POT_LABEL_CLASS, TEAMS, teamOwner, type GroupLetter, type Match, type Pot,
 } from "@/lib/wc-data";
 import {
@@ -130,6 +130,10 @@ function LocalTime({ iso }: { iso: string }) {
       {offset && <span className="text-muted-foreground/70"> ({offset})</span>}
     </span>
   );
+}
+
+function matchLocation(match: Match): string {
+  return [match.venue, match.city].filter(Boolean).join(", ");
 }
 
 
@@ -369,7 +373,7 @@ function MiniFixture({ match }: { match: Match }) {
         ) : (
           <span><LocalTime iso={match.date} /></span>
         )}
-        <span className="text-muted-foreground/70">· {match.city}</span>
+        <span className="text-muted-foreground/70">· {matchLocation(match)}</span>
       </div>
       <div className="flex items-center justify-between gap-2">
         <TeamChip team={e.home} />
@@ -543,7 +547,7 @@ function FixtureRow({ match }: { match: Match }) {
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className="border-primary/40 text-primary">{stageLabel}</Badge>
           <span><LocalTime iso={match.date} /></span>
-          <span className="hidden sm:inline">· {match.venue}, {match.city}</span>
+          <span className="hidden sm:inline">· {matchLocation(match)}</span>
           {ukTv && match.stage === "group" && (
             <span className="hidden md:inline">· 📺 UK: {ukTv}</span>
           )}
@@ -1178,9 +1182,9 @@ type ProjectedSlot =
 
 
 function projectR32Slots(): ProjectedSlot[][] {
-  return CONFIRMED_R32_MATCHUPS.map(([home, away]) => [
-    { team: home, projected: false, confidence: 1 },
-    { team: away, projected: false, confidence: 1 },
+  return KNOCKOUT_MATCHES.filter((match) => match.stage === "R32").map((match) => [
+    { team: match.home, projected: false, confidence: 1 },
+    { team: match.away, projected: false, confidence: 1 },
   ]);
 }
 
@@ -1388,7 +1392,7 @@ function Bracket() {
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-bold">Round of 32 — confirmed bracket</h3>
           <span className="text-[10px] text-muted-foreground italic">
-            Finalized matchups from the tournament rules.
+            Matchups and kick-off times from the OpenFootball API.
           </span>
 
         </div>
@@ -1542,7 +1546,7 @@ function ProjectedKnockoutCard({
           </span>
         )}
       </div>
-      <div className="text-[10px] text-muted-foreground">{match.city}</div>
+      <div className="text-[10px] text-muted-foreground">{matchLocation(match)}</div>
       <div className="space-y-1">
         {slots.map((s, i) => <ProjectedSlotRow key={i} slot={s} />)}
       </div>

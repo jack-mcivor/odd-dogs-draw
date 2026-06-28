@@ -153,6 +153,7 @@ export interface Match {
   city: string;
   home: string;
   away: string;
+  apiMatchNumber?: number;
 }
 
 export const CONFIRMED_R32_MATCHUPS: readonly (readonly [string, string])[] = [
@@ -316,6 +317,13 @@ function genKnockouts(): Match[] {
       list.push({
         id: `${prefix}-${i + 1}`,
         stage,
+        apiMatchNumber: stage === "R32" ? 73 + i
+          : stage === "R16" ? 89 + i
+          : stage === "QF" ? 97 + i
+          : stage === "SF" ? 101 + i
+          : stage === "3rd" ? 103
+          : stage === "Final" ? 104
+          : undefined,
         date: dates[i % dates.length],
         venue: v.stadium,
         city: v.city,
@@ -358,6 +366,48 @@ function genKnockouts(): Match[] {
 export const KNOCKOUT_MATCHES: Match[] = genKnockouts();
 
 export const ALL_MATCHES: Match[] = [...GROUP_MATCHES, ...KNOCKOUT_MATCHES];
+
+function knockoutIdForApiMatchNumber(num: number): string | undefined {
+  if (num >= 73 && num <= 88) return `R32-${num - 72}`;
+  if (num >= 89 && num <= 96) return `R16-${num - 88}`;
+  if (num >= 97 && num <= 100) return `QF-${num - 96}`;
+  if (num >= 101 && num <= 102) return `SF-${num - 100}`;
+  if (num === 103) return "3rd-1";
+  if (num === 104) return "Final-1";
+  return undefined;
+}
+
+function concreteApiTeamName(name: string | null | undefined): string {
+  if (!name) return "";
+  return TEAMS[name] ? name : "";
+}
+
+function applyApiScheduleFields(match: Match, row: MatchData): void {
+  if (row.datetime_utc) match.date = row.datetime_utc;
+  const location = row.venue_name || row.venue_city || row.venue;
+  if (location) {
+    match.venue = location;
+    match.city = row.venue_city && row.venue_city !== location ? row.venue_city : "";
+  }
+}
+
+export function applyApiSchedule(matches: MatchData[]): void {
+  for (const row of matches) {
+    const home = concreteApiTeamName(row.home_name ?? row.home);
+    const away = concreteApiTeamName(row.away_name ?? row.away);
+    const match = row.phase === "group" && home && away
+      ? GROUP_MATCHES.find((m) => (m.home === home && m.away === away) || (m.home === away && m.away === home))
+      : KNOCKOUT_MATCHES.find((m) => m.id === knockoutIdForApiMatchNumber(row.num));
+    if (!match) continue;
+
+    applyApiScheduleFields(match, row);
+
+    if (match.stage !== "group" && home && away) {
+      match.home = home;
+      match.away = away;
+    }
+  }
+}
 
 export const POT_LABEL_CLASS: Record<Pot, string> = {
   1: "bg-[var(--pot1)] text-white",
